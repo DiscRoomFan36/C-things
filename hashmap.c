@@ -9,19 +9,23 @@
 
 typedef unsigned int HASH_INT;
 
+typedef struct Entry {
+    char *key;
+    int value;
+    // the hash of the key, for faster lookup
+    HASH_INT hash;
+    bool alive;
+    bool in_use;
+} Entry;
+
+
 typedef struct HashMap {
     size_t array_size;
 
     size_t num_curr_elements;
     size_t num_used_slots;
 
-    char **keys;
-    int *values;
-
-    // an array of the hashs for the keys
-    HASH_INT *hashs;
-    bool *alive_entrys;
-    bool *used_entrys;
+    Entry *entrys;
 } HashMap;
 
 // bleh, C
@@ -59,14 +63,16 @@ int compute_hash(char *to_hash) {
 int maybe_get_index_of_key(HashMap *hm, char *key, HASH_INT hash) {
     if (hm->array_size == 0) return -1;
 
-    // helps keep runs of collisions down
-    // assert(hm->array_size is power of 2) // this probe strategy works best when its a power of 2
+    // this probe strategy covers all positions when its a power of 2
+    // assert(hm->array_size is power of 2)
     size_t incr = 1;
     size_t pos = hash % hm->array_size;
 
-    while (hm->used_entrys[pos]) {
+    // while (hm->used_entrys[pos]) {
+    while (hm->entrys[pos].in_use) {
         // check the hashes for speed, then check the actual keys
-        if ((hm->alive_entrys[pos]) && (hm->hashs[pos] == hash) && (strcmp(key, hm->keys[pos]) == 0)) return pos;
+        Entry entry = hm->entrys[pos];
+        if ((entry.alive) && (entry.hash == hash) && (strcmp(key, entry.key) == 0)) return pos;
 
         pos = (pos + incr) % hm->array_size;
         incr += 1;
@@ -79,8 +85,8 @@ int maybe_get_index_of_key(HashMap *hm, char *key, HASH_INT hash) {
 int get_index_of_key(HashMap *hm, char *key, HASH_INT hash) {
     int index = maybe_get_index_of_key(hm, key, hash);
 
-    if (index == -1)                       return -1;
-    if (hm->used_entrys[index] == false)   return -1;
+    if (index == -1)                 return -1;
+    if (!hm->entrys[index].in_use)   return -1;
 
     return index;
 }
@@ -100,36 +106,31 @@ void resize_hashmap(HashMap *hm, size_t new_size) {
         .array_size = new_size,
 
         .num_curr_elements = 0,
-        .num_used_slots = 0,
+        .num_used_slots    = 0,
 
         // get some new arrays
-        .keys          = malloc(new_size * sizeof(char *)),
-        .values        = malloc(new_size * sizeof(int)),
-        .hashs         = malloc(new_size * sizeof(HASH_INT)),
-        .alive_entrys  = malloc(new_size * sizeof(bool)),
-        .used_entrys   = malloc(new_size * sizeof(bool)),
+        .entrys = malloc(new_size * sizeof(Entry)),
     };
 
     // set these all to false, all other arrays can stay un-init
-    memset(new_hm.alive_entrys, 0, new_size * sizeof(bool)); // this might be able to be un-init
-    memset(new_hm.used_entrys,  0, new_size * sizeof(bool));
-
-    for (size_t i = 0; i < hm->array_size; i++) {
-        char *key     = hm->keys[i];
-        int value     = hm->values[i];
-        HASH_INT hash = hm->hashs[i];
-        bool is_valid = hm->alive_entrys[i];
-        bool is_used  = hm->used_entrys[i];
-
-        if (is_used && is_valid)   add_with_hash(&new_hm, key, value, hash);
+    for (size_t i = 0; i < new_hm.array_size; i++) {
+        // we dont have to clean this whole thing. just the in_use flag...
+        // new_hm.entrys[i] = {0};
+        // however, memset might be faster...
+        new_hm.entrys[i].in_use = false;
     }
 
-    // free old arrays
-    free(hm->keys);
-    free(hm->values);
-    free(hm->hashs);
-    free(hm->alive_entrys);
-    free(hm->used_entrys);
+    for (size_t i = 0; i < hm->array_size; i++) {
+        Entry entry = hm->entrys[i];
+
+        if (entry.in_use && entry.alive) {
+            add_with_hash(&new_hm, entry.key, entry.value, entry.hash);
+        }
+    }
+
+
+    // free old array
+    free(hm->entrys);
 
     // stamp the new hashmap
     *hm = new_hm;
@@ -149,7 +150,7 @@ void add_with_hash(HashMap *hm, char *key, int value, HASH_INT hash) {
     int possible_index = get_index_of_key(hm, key, hash);
     if (possible_index != -1) {
         // update the value and return
-        hm->values[possible_index] = value;
+        hm->entrys[possible_index].value = value;
         return;
     }
 
@@ -162,13 +163,13 @@ void add_with_hash(HashMap *hm, char *key, int value, HASH_INT hash) {
     // this must be an empty slot
     int empty_slot = maybe_get_index_of_key(hm, key, hash);
     assert(empty_slot != -1); // we have resized already
-    assert(hm->used_entrys[empty_slot] == false);
+    assert(hm->entrys[empty_slot].in_use == false);
 
-    hm->keys         [empty_slot] = key;
-    hm->values       [empty_slot] = value;
-    hm->hashs        [empty_slot] = hash;
-    hm->alive_entrys [empty_slot] = true;
-    hm->used_entrys  [empty_slot] = true;
+    hm->entrys[empty_slot].key      = key;
+    hm->entrys[empty_slot].value    = value;
+    hm->entrys[empty_slot].hash     = hash;
+    hm->entrys[empty_slot].alive    = true;
+    hm->entrys[empty_slot].in_use   = true;
 
     hm->num_curr_elements += 1;
     hm->num_used_slots    += 1;
@@ -184,7 +185,7 @@ int get(HashMap *hm, char *key) {
     int index = get_index_of_key(hm, key, hash);
     if (index == -1) assert(false && "The key was not in the array.");
 
-    return hm->values[index];
+    return hm->entrys[index].value;
 }
 
 void delete(HashMap *hm, char *key) {
@@ -196,8 +197,8 @@ void delete(HashMap *hm, char *key) {
     int index = get_index_of_key(hm, key, hash);
     if (index == -1) assert(false && "there is no key to delete.");
 
-    hm->alive_entrys[index]  = false;
-    hm->num_curr_elements   -= 1;
+    hm->entrys[index].alive = false;
+    hm->num_curr_elements  -= 1;
 }
 
 
