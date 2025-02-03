@@ -10,4 +10,4 @@ main_macro: main_macro.c hashmap_macro.c
 	$(CC) $(CFLAGS) main_macro.c -o main_macro
 
 clean:
-	rm -f core main_macro *.o *~
+	rm -f core main main_macro *.o *~
