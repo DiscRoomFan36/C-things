@@ -2,7 +2,6 @@
 
 #include "hashmap.c"
 
-
 int main(void) {
 
     HashMap hm = {0};
@@ -17,6 +16,8 @@ int main(void) {
 
     // this will assert
     // printf("hello -> %d\n", get(&hm, "hello"));
+
+    free(hm.entrys);
 
     return 0;
 }
