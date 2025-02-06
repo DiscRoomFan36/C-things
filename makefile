@@ -1,13 +1,10 @@
-CC = gcc
-CFLAGS = -Wall -Wextra -g
+CC = clang
+CFLAGS = -Wall -Wextra -g #-pedantic
 
-all: main main_macro
+all: hashmap_test
 
-main: main.c hashmap.c
-	$(CC) $(CFLAGS) main.c -o main
-
-main_macro: main_macro.c hashmap_macro.c
-	$(CC) $(CFLAGS) main_macro.c -o main_macro
+hashmap_test: hashmap_test.c hashmap.c ints.h
+	$(CC) $(CFLAGS) hashmap_test.c -o hashmap_test
 
 clean:
-	rm -f core main main_macro *.o *~
+	rm -f core hashmap_test *.o *~
