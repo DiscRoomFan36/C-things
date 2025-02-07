@@ -8,7 +8,6 @@ mytb.h: build src/mytb_unsqueezed.h
 
 tests: build/hashmap_test
 
-
 build/hashmap_test: build tests/hashmap_test.c src/hashmap.c src/ints.h
 	$(CC) $(CFLAGS) tests/hashmap_test.c -o build/hashmap_test
 
