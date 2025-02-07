@@ -1,8 +1,8 @@
 
 //
-// Fletcher M - 06/02/2025
-//
 // ints.h - just some ints that are nice to have
+//
+// Fletcher M - 06/02/2025
 //
 
 #ifndef INT_TYPES

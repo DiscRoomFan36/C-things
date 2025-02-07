@@ -1,6 +1,12 @@
+//
+// hashmap.h - A simple hashmap
+//
+// Fletcher M - 06/02/2025
+//
 
-// A simple hashmap.
-
+// TODO add u64   -> void* hashmap
+// TODO add char* -> void* hashmap
+// TODO add void* -> void* hashmap
 
 
 #ifndef HASHMAP_H_

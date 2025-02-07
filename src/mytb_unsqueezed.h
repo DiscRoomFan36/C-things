@@ -12,6 +12,7 @@
 #ifndef MYTB_H_
 #define MYTB_H_
 
+// the common libs
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,16 +21,15 @@
 #include <assert.h>
 
 
+// TODO prefix everything with mytb_
+// TODO have a strip prefix option
 
-
+// my own libs
+#include "dynamic_array.h"
 
 #include "ints.h"
 
-
-
 #include "hashmap.h"
-
-
 
 
 #endif // MYTB_H_
