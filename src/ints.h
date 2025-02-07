@@ -8,6 +8,7 @@
 #ifndef INT_TYPES
 #define INT_TYPES
 
+
 #include <stdint.h>
 
 typedef uint64_t u64;
@@ -24,6 +25,7 @@ typedef u32 bool32;
 
 #define False (0)
 #define True  (1)
+
 
 #endif // INT_TYPES
 

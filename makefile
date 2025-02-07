@@ -1,10 +1,16 @@
 CC = clang
-CFLAGS = -Wall -Wextra -g #-pedantic
+CFLAGS = -std=c99 -Wall -Wextra -ggdb #-pedantic
 
-all: hashmap_test
 
-hashmap_test: hashmap_test.c hashmap.c ints.h
-	$(CC) $(CFLAGS) hashmap_test.c -o hashmap_test
+tests: build/hashmap_test
+
+
+build/hashmap_test: build tests/hashmap_test.c src/hashmap.c src/ints.h
+	$(CC) $(CFLAGS) tests/hashmap_test.c -o build/hashmap_test
+
+
+build:
+	mkdir -p build/
 
 clean:
-	rm -f core hashmap_test *.o *~
+	rm -rf build/
