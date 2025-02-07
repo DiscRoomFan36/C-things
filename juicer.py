@@ -14,7 +14,7 @@ def read_entire_file(filepath: str) -> str:
         return f.read()
 
 SOURCES_FOLDER = "./src/"
-MYTB_SOURCE    = SOURCES_FOLDER+"mytb_unsqueezed.h"
+MYTB_UNSQUEEZED_SOURCE    = SOURCES_FOLDER+"mytb_unsqueezed.h"
 
 
 def get_all_includes(file: str) -> list[str]:
@@ -55,7 +55,7 @@ def get_current_day_string() -> str:
 
 
 if __name__ == "__main__":
-    mytb_unsqueezed = read_entire_file(MYTB_SOURCE)
+    mytb_unsqueezed = read_entire_file(MYTB_UNSQUEEZED_SOURCE)
 
     # find imports
     includes = get_all_includes(mytb_unsqueezed)
@@ -75,12 +75,10 @@ if __name__ == "__main__":
         dependency_map[inc] = separate_includes(other_file_includes)
     if DEBUG: print(dependency_map)
 
-
     # de-dup all system includes
     all_system_includes = set(sys_includes)
     for sys, _ in dependency_map.values():
-        for inc in sys:
-            all_system_includes.add(inc)
+        for inc in sys: all_system_includes.add(inc)
     sorted_system = sorted(all_system_includes)
 
 
@@ -107,10 +105,7 @@ if __name__ == "__main__":
     lines = mytb_unsqueezed.splitlines()
 
     # skip the header, we already got one
-    while True:
-        lines = lines[1:]
-        if lines[0].startswith("#define MYTB_H_"):
-            break
+    while not lines[0].startswith("#define MYTB_H_"): lines = lines[1:]
     lines = lines[1:]
 
 
@@ -145,23 +140,16 @@ if __name__ == "__main__":
             mytb_output.append(line)
 
 
-
+    # file ending
     mytb_output.append("#endif // MYTB_H_")
     mytb_output.append("")
 
-    final_output = "\n".join(mytb_output)
-
-    # now save it to the file
+    # now save it to the file.
+    # maybe we should do this sooner... in case this whole thing starts slowing down
     import sys
-
-    if DEBUG: print(final_output)
 
     assert sys.argv[0] == "juicer.py"
     assert len(sys.argv) == 2
 
     with open(sys.argv[1], "w") as f:
-        f.write(final_output)
-
-
-
-
+        f.write("\n".join(mytb_output))
