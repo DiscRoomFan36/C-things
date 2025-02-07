@@ -27,7 +27,7 @@
 
 
 
-#include "hashmap.c"
+#include "hashmap.h"
 
 
 
