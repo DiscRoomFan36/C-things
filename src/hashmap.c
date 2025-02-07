@@ -61,6 +61,9 @@ bool32 key_exists(HashMap_Str_Int *hm, char *key);
 
 
 HASH_INT compute_string_hash(char *to_hash) {
+    // to handle the null Key...
+    if (to_hash == NULL) return 0;
+
     HASH_INT hash = 6251;
     while (*to_hash) {
         hash += 31*hash + *to_hash;
@@ -102,14 +105,13 @@ s64 get_index_of_key(HashMap_Str_Int *hm, char *key, HASH_INT hash) {
 }
 
 bool32 key_exists(HashMap_Str_Int *hm, char *key) {
-    assert(key != NULL);
     return get_index_of_key(hm, key, compute_string_hash(key)) != -1;
 }
 
 
 void resize_hashmap(HashMap_Str_Int *hm, u64 new_size) {
-    // only make the hashmap bigger
-    assert(new_size > hm->num_curr_elements);
+    // only make the hashmap bigger. maybe fix later?
+    assert(new_size > hm->num_curr_elements && "For now we can only make it bigger, you shouldn't be touching this anyway.");
 
     // we'll stomp the old one with this.
     HashMap_Str_Int new_hm = {
@@ -118,11 +120,10 @@ void resize_hashmap(HashMap_Str_Int *hm, u64 new_size) {
         .num_curr_elements = 0,
         .num_used_slots    = 0,
 
-        // get some new arrays
         .entrys = malloc(new_size * sizeof(Entry_Str_Int)),
     };
 
-    // set these all to false, all other arrays can stay un-init
+    // set these all to false, all other arrays can stay un-initalized for speed.
     for (u64 i = 0; i < new_hm.array_size; i++) {
         // we dont have to clean this whole thing. just the in_use flag...
         // new_hm.entrys[i] = {0};
@@ -132,31 +133,23 @@ void resize_hashmap(HashMap_Str_Int *hm, u64 new_size) {
 
     for (u64 i = 0; i < hm->array_size; i++) {
         Entry_Str_Int entry = hm->entrys[i];
-
         if (entry.in_use && entry.alive) {
             add_with_hash(&new_hm, entry.key, entry.value, entry.hash);
         }
     }
 
-
-    // free old array
     free(hm->entrys);
-
-    // stamp the new hashmap
     *hm = new_hm;
 }
 
 
 
 void add(HashMap_Str_Int *hm, char *key, s64 value) {
-    assert(key != NULL);
     HASH_INT hash = compute_string_hash(key);
     add_with_hash(hm, key, value, hash);
 }
 
 void add_with_hash(HashMap_Str_Int *hm, char *key, s64 value, HASH_INT hash) {
-    assert(key != NULL);
-
     s64 possible_index = get_index_of_key(hm, key, hash);
     if (possible_index != -1) {
         // update the value and return
@@ -187,9 +180,6 @@ void add_with_hash(HashMap_Str_Int *hm, char *key, s64 value, HASH_INT hash) {
 
 
 s64 get(HashMap_Str_Int *hm, char *key) {
-    assert(hm->num_curr_elements > 0);
-    assert(key != NULL);
-
     HASH_INT hash = compute_string_hash(key);
 
     s64 index = get_index_of_key(hm, key, hash);
@@ -199,9 +189,6 @@ s64 get(HashMap_Str_Int *hm, char *key) {
 }
 
 void delete(HashMap_Str_Int *hm, char *key) {
-    assert(hm->num_curr_elements > 0);
-    assert(key != NULL);
-
     HASH_INT hash = compute_string_hash(key);
 
     s64 index = get_index_of_key(hm, key, hash);
