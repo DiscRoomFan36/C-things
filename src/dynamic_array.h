@@ -5,7 +5,6 @@
 // Fletcher M - 07/02/2025
 //
 
-
 #ifndef DYNAMIC_ARRAY_H_
 #define DYNAMIC_ARRAY_H_
 

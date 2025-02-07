@@ -8,14 +8,12 @@
 // TODO add char* -> void* hashmap
 // TODO add void* -> void* hashmap
 
-
 #ifndef HASHMAP_H_
 #define HASHMAP_H_
 
 
 #include <stdlib.h>
 #include <string.h>
-
 #include <assert.h>
 
 #include "ints.h"
@@ -205,7 +203,4 @@ void delete(HashMap_Str_Int *hm, char *key) {
 }
 
 
-
-
 #endif // HASHMAP_H_
-
