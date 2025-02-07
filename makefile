@@ -2,6 +2,10 @@ CC = clang
 CFLAGS = -std=c99 -Wall -Wextra -ggdb #-pedantic
 
 
+mytb.h: build src/mytb_unsqueezed.h
+	python3 juicer.py build/mytb.h
+
+
 tests: build/hashmap_test
 
 
