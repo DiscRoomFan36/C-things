@@ -1,6 +1,6 @@
 #include <stdio.h>
 
-#include "../src/hashmap.c"
+#include "../src/hashmap.h"
 
 int main(void) {
 
