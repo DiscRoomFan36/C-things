@@ -13,10 +13,9 @@ int main(void) {
     da_free(&files);
 
 
-    char *entire_file = read_entire_file("./src/ints.h");
-    assert(entire_file != NULL);
-    printf("%s\n", entire_file);
-    free(entire_file);
+    SV entire_file = read_entire_file("./src/ints.h");
+    printf(SV_Fmt"\n", SV_Arg(entire_file));
+    free(entire_file.data);
 
     return 0;
 }

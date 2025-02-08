@@ -16,6 +16,7 @@
 
 #include "ints.h"
 #include "dynamic_array.h"
+#include "String_View.h"
 
 
 typedef struct String_Array {
@@ -58,24 +59,24 @@ void get_all_files_in_directory(char *directory, String_Array *array) {
 }
 
 // TODO use String_View
-char *read_entire_file(char *filename) {
+SV read_entire_file(char *filename) {
     FILE *file = fopen(filename, "rb");
+    SV result = {0};
+
     if (!file) {
         printf("ERROR when opening the file: %s\n", strerror(errno));
-        return NULL;
+        return result;
     }
 
     fseek(file, 0, SEEK_END);
-    u64 size = ftell(file);
+    result.size = ftell(file);
     fseek(file, 0, SEEK_SET);
 
-    char *result = malloc((size+1) * sizeof(char));
-    assert(result != NULL);
+    result.data = malloc(result.size * sizeof(char));
+    assert(result.data != NULL);
 
-    u64 read_bytes = fread(result, sizeof(char), size, file);
-    assert(read_bytes == size);
-    result[size] = '\0';
-
+    u64 read_bytes = fread(result.data, sizeof(char), result.size, file);
+    assert(read_bytes == result.size);
 
     if (fclose(file)) {} // error, we dont care
 

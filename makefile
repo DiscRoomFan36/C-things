@@ -16,8 +16,9 @@ build/file_test: build tests/file_test.c src/file.h
 
 
 # inner dependencies
-src/file.h: src/dynamic_array.h src/ints.h
+src/file.h: src/dynamic_array.h src/ints.h src/String_View.h
 src/hashmap.h: src/ints.h
+src/String_View.h: src/ints.h
 
 
 build:

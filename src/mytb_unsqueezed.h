@@ -22,6 +22,8 @@
 
 #include "hashmap.h"
 
+#include "String_View.h"
+
 #include "file.h"
 
 
