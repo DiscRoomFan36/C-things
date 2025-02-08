@@ -22,5 +22,7 @@
 
 #include "hashmap.h"
 
+#include "file.h"
+
 
 #endif // MYTB_H_
