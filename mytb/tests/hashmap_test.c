@@ -1,6 +1,6 @@
 #include <stdio.h>
 
-#include "../src/hashmap.h"
+#include "../mytb/hashmap.h"
 
 int main(void) {
 

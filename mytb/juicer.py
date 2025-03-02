@@ -13,7 +13,7 @@ def read_entire_file(filepath: str) -> str:
     with open(filepath, "r") as f:
         return f.read()
 
-SOURCES_FOLDER = "./src/"
+SOURCES_FOLDER = "./mytb/"
 MYTB_UNSQUEEZED_SOURCE    = SOURCES_FOLDER+"mytb_unsqueezed.h"
 
 

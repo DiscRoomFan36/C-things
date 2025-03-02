@@ -1,9 +1,9 @@
 
-#include "../src/file.h"
+#include "../mytb/file.h"
 
 int main(void) {
     String_Array files = {0};
-    get_all_files_in_directory("./src/", &files);
+    get_all_files_in_directory("./mytb/", &files);
 
     for (u64 i = 0; i < files.count; i++) {
         printf("%zu: %s\n", i, files.items[i]);
@@ -13,7 +13,7 @@ int main(void) {
     da_free(&files);
 
 
-    SV entire_file = read_entire_file("./src/ints.h");
+    SV entire_file = read_entire_file("./mytb/ints.h");
     printf(SV_Fmt"\n", SV_Arg(entire_file));
     free(entire_file.data);
 

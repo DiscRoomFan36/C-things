@@ -23,7 +23,7 @@ typedef struct SV_Array {
     SV *items;
     u64 count;
     u64 capacity;
-};
+} SV_Array;
 
 
 // TODO more functions

@@ -36,7 +36,7 @@
 
 #define da_free_items(da)                       \
     do {                                        \
-        for (int i = 0; i < (da)->count; i++) { \
+        for (u64 i = 0; i < (da)->count; i++) { \
             free((da)->items[i]);               \
         }                                       \
         (da)->count = 0;                        \
