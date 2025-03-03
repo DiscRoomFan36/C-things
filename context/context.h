@@ -15,22 +15,25 @@
 // once when useing it in you own projects
 //
 // Other Optional Defines:
-//  USE_EMPTY_CONTEXT             -> typedef's an empty context, not useful
 //
-//  ASSERT_IN_GET_OR_SET_CONTEXT  -> checks for null pointer in 'get_context()'
-//                                   or 'set_context()' (for the new_context ptr)
-//                                   (NOTE: You can '#define ASSERT' to change
-//                                   to a different assert, the default is
-//                                   <assert.h>'s assert)
+//  USE_EMPTY_CONTEXT
+//      typedef's an empty context, not useful
 //
-//  NO_GLOBAL_CONTEXT_BASE        -> stops a variable called 'context_base' from being
-//                                   put into global memory, setting the context
-//                                   pointer to NULL at the start of the program,
-//                                   you will have to set it in your main function,
-//                                   if you do not define this, the value at the
-//                                   context pointer will be zero initalized when
-//                                   the program starts.
-//                                   (as you might have done anyway)
+//  ASSERT_IN_GET_OR_SET_CONTEXT
+//      checks for null pointer in 'get_context()'
+//      or 'set_context()' (for the new_context ptr)
+//      (NOTE: You can '#define CONTEXT_ASSERT' to change
+//      to a different assert, the default is
+//      <assert.h>'s assert)
+//
+//  NO_GLOBAL_CONTEXT_BASE
+//      stops a variable called 'context_base' from being
+//      put into global memory, setting the context
+//      pointer to NULL at the start of the program,
+//      you will have to set it in your main function,
+//      if you do not define this, the value at the
+//      context pointer will be zero initalized when
+//      the program starts. (as you might have done anyway)
 //
 
 #ifndef CONTEXT_H_
@@ -137,20 +140,20 @@ Context *__context = &context_base;
 #endif // NO_GLOBAL_CONTEXT_BASE
 
 
-// this just define the ASSERT() function if you dont
+// this just define the CONTEXT_ASSERT() function if you dont
 // have it for ASSERT_IN_GET_OR_SET_CONTEXT
 #ifdef ASSERT_IN_GET_OR_SET_CONTEXT
 
-# ifndef ASSERT
+# ifndef CONTEXT_ASSERT
 #  include <assert.h>
-#  define ASSERT assert
-# endif // ASSERT
+#  define CONTEXT_ASSERT assert
+# endif // CONTEXT_ASSERT
 
 #endif // ASSERT_IN_GET_OR_SET_CONTEXT
 
 Context *get_context() {
 #ifdef ASSERT_IN_GET_OR_SET_CONTEXT
-    ASSERT(__context && "context must not be NULL")
+    CONTEXT_ASSERT(__context && "context must not be NULL");
 #endif
 
     return __context;
@@ -158,7 +161,7 @@ Context *get_context() {
 
 Context *set_context(Context *new_context) {
 #ifdef ASSERT_IN_GET_OR_SET_CONTEXT
-    ASSERT(new_context && "set_context was passed a NULL pointer")
+    CONTEXT_ASSERT(new_context && "set_context was passed a NULL pointer");
 #endif
 
     Context *old = __context;
