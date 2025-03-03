@@ -9,6 +9,7 @@ typedef struct Context {
 #include "context.h"
 
 // this shouldn't be set in the "context.h" so we can define it somewhere else
+// but it must be defined so we can use 'PUSH_CONTEXT_PARTLY(a, ...)'
 int set_context_a(int new_a) {
     Context *context = get_context();
 
