@@ -80,6 +80,7 @@ void a_bad_way_to_handle_the_context() {
     print_context();
 }
 
+
 void a_better_way_to_handle_the_context() {
     // the better way. (With macro's)
     printf("--------------------------------\n");
@@ -112,6 +113,7 @@ void a_better_way_to_handle_the_context() {
     print_context();
 }
 
+
 void a_more_specific_situation_aka_replace_only_one_element() {
     // now make a more specific one for 'a'
     printf("--------------------------------\n");
@@ -129,6 +131,7 @@ void a_more_specific_situation_aka_replace_only_one_element() {
     printf("after using new a -> ");
     print_context();
 }
+
 
 void a_dangerous_pitfall() {
     printf("--------------------------------\n");
