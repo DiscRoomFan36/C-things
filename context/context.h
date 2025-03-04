@@ -85,6 +85,9 @@ Context *set_context(Context *new_context);
 
 #ifdef CONTEXT_IMPLEMENTATION
 
+#ifndef CONTEXT_IMPLEMENTATION_GUARD_
+#define CONTEXT_IMPLEMENTATION_GUARD_
+
 // I've had some thought about where the context_base should go.
 // the way I see it, there are 3 ways to store something:
 //   - Globally, where everyone can see it
@@ -168,5 +171,7 @@ Context *set_context(Context *new_context) {
     __context = new_context;
     return old;
 }
+
+#endif // CONTEXT_IMPLEMENTATION_GUARD_
 
 #endif // CONTEXT_IMPLEMENTATION
