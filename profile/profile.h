@@ -37,11 +37,11 @@ typedef clock_t time_unit;
 
 typedef struct Profile_Data Profile_Data;
 
-typedef struct Profile_Zone_Array {
+typedef struct Profile_Data_Array {
     Profile_Data *items;
     size_t count;
     size_t capacity;
-} Profile_Zone_Array;
+} Profile_Data_Array;
 
 struct Profile_Data {
     const char *title;
@@ -55,14 +55,14 @@ struct Profile_Data {
     // boolean value
     int is_section;
     Profile_Data *prev_section;
-    Profile_Zone_Array sub_sections;
+    Profile_Data_Array sub_sections;
 };
 
 
 time_unit get_time(void);
 float time_units_to_secs(time_unit x);
 
-void da_append_profile_array(Profile_Zone_Array *da, Profile_Data item);
+void da_append_profile_array(Profile_Data_Array *da, Profile_Data item);
 
 
 void profile_section(const char *title, const char *__file__, int __line__, const char *__fun__);
@@ -95,7 +95,7 @@ float time_units_to_secs(time_unit x) {
 }
 
 
-void da_append_profile_array(Profile_Zone_Array *da, Profile_Data item) {
+void da_append_profile_array(Profile_Data_Array *da, Profile_Data item) {
     if (da->count >= da->capacity) {
         da->capacity = da->capacity == 0 ? 32 : da->capacity*2;
         da->items = (Profile_Data*) realloc(da->items, da->capacity*sizeof(Profile_Data));
@@ -127,7 +127,7 @@ void profile_section(const char *title, const char *__file__, int __line__, cons
         .sub_sections = {},
     };
 
-    Profile_Zone_Array *current_profiles = &curent_section->sub_sections;
+    Profile_Data_Array *current_profiles = &curent_section->sub_sections;
 
     da_append_profile_array(current_profiles, data);
     Profile_Data *last = &current_profiles->items[current_profiles->count-1];
@@ -176,7 +176,7 @@ void profile_zone_end(const char *__file__, int __line__, const char *__fun__) {
     (void) __line__;
     (void) __fun__;
 
-    Profile_Zone_Array *curent_profiles = &curent_section->sub_sections;
+    Profile_Data_Array *curent_profiles = &curent_section->sub_sections;
 
     // there could be no zone to end. lookout!
     // there is no need if there was no prev
@@ -203,7 +203,7 @@ size_t profile_strlen(const char *str) {
     return n;
 }
 
-void profile_print_helper(Profile_Zone_Array *array, int depth) {
+void profile_print_helper(Profile_Data_Array *array, int depth) {
     int max_word_length = 0;
     for (size_t i = 0; i < array->count; i++) {
         Profile_Data *data = &array->items[i];
@@ -241,7 +241,7 @@ void profile_print(void) {
 }
 
 
-void profile_reset_helper(Profile_Zone_Array *array) {
+void profile_reset_helper(Profile_Data_Array *array) {
     for (size_t i = 0; i < array->count; i++) {
         Profile_Data *data = &array->items[i];
 
