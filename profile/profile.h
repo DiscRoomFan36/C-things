@@ -11,6 +11,7 @@
     #define PROFILE_ZONE_END()  profile_zone_end(__FILE__, __LINE__, __func__)
 
     #define PROFILE_PRINT() profile_print()
+    #define PROFILE_RESET() profile_reset()
 #else
     #define PROFILE_SECTION(...)
     #define PROFILE_SECTION_END(...)
@@ -19,6 +20,7 @@
     #define PROFILE_ZONE_END(...)
 
     #define PROFILE_PRINT(...)
+    #define PROFILE_RESET(...)
 #endif
 
 
@@ -31,38 +33,36 @@
 #endif
 
 
-typedef clock_t time_units;
+typedef clock_t time_unit;
 
 typedef struct Profile_Data Profile_Data;
 
-typedef struct Profile_Array {
+typedef struct Profile_Zone_Array {
     Profile_Data *items;
     size_t count;
     size_t capacity;
-} Profile_Array;
-
+} Profile_Zone_Array;
 
 struct Profile_Data {
     const char *title;
-    time_units start_time;
-    time_units end_time;
+    time_unit start_time;
+    time_unit end_time;
 
     const char *file; // these could be useful
     int         line; // these could be useful
     const char *func; // these could be useful
 
-    // size_t section_depth;
-
-    // // boolean value
-    // int is_section;
-    // Profile_Array sub_sections;
+    // boolean value
+    int is_section;
+    Profile_Data *prev_section;
+    Profile_Zone_Array sub_sections;
 };
 
 
-time_units get_time(void);
-float time_units_to_secs(time_units x);
+time_unit get_time(void);
+float time_units_to_secs(time_unit x);
 
-void da_append_profile_array(Profile_Array *da, Profile_Data item);
+void da_append_profile_array(Profile_Zone_Array *da, Profile_Data item);
 
 
 void profile_section(const char *title, const char *__file__, int __line__, const char *__fun__);
@@ -83,18 +83,19 @@ void profile_print(void);
 #define PROFILE_IMPLEMENTATION_
 
 
-Profile_Array profiles = {};
+Profile_Data __base_section = {.is_section = 1, .sub_sections = {}};
+Profile_Data *curent_section = &__base_section;
 
 
-time_units get_time(void) {
+time_unit get_time(void) {
     return clock();
 }
-float time_units_to_secs(time_units x) {
+float time_units_to_secs(time_unit x) {
     return (float) x / (float) CLOCKS_PER_SEC;
 }
 
 
-void da_append_profile_array(Profile_Array *da, Profile_Data item) {
+void da_append_profile_array(Profile_Zone_Array *da, Profile_Data item) {
     if (da->count >= da->capacity) {
         da->capacity = da->capacity == 0 ? 32 : da->capacity*2;
         da->items = (Profile_Data*) realloc(da->items, da->capacity*sizeof(Profile_Data));
@@ -110,20 +111,45 @@ void profile_section(const char *title, const char *__file__, int __line__, cons
     // zone's cant contain sections...
     profile_zone_end(__file__, __line__, __fun__);
 
-    // TODO
+    time_unit start = get_time();
+
+    Profile_Data data = {
+        .title = title,
+        .start_time = start,
+        .end_time = 0,
+
+        .file = __file__,
+        .line = __line__,
+        .func = __fun__,
+
+        .is_section = 1,
+        .prev_section = curent_section,
+        .sub_sections = {},
+    };
+
+    Profile_Zone_Array *current_profiles = &curent_section->sub_sections;
+
+    da_append_profile_array(current_profiles, data);
+    Profile_Data *last = &current_profiles->items[current_profiles->count-1];
+    curent_section = last;
 }
 
 void profile_section_end(const char *__file__, int __line__, const char *__fun__) {
     profile_zone_end(__file__, __line__, __fun__);
 
-    // TODO
+    if (curent_section->prev_section == NULL) return;
+
+    time_unit end = get_time();
+    curent_section->end_time = end;
+
+    curent_section = curent_section->prev_section;
 }
 
 
 // profile the things after this call
 // will stop with next profile.h function call
 void profile_zone(const char *title, const char *__file__, int __line__, const char *__fun__) {
-    time_units start = get_time();
+    time_unit start = get_time();
 
     // end last zone
     profile_zone_end(__file__, __line__, __fun__);
@@ -136,9 +162,13 @@ void profile_zone(const char *title, const char *__file__, int __line__, const c
         .file = __file__,
         .line = __line__,
         .func = __fun__,
+
+        .is_section = 0,
+        .prev_section = NULL,
+        .sub_sections = {},
     };
 
-    da_append_profile_array(&profiles, data);
+    da_append_profile_array(&curent_section->sub_sections, data);
 }
 
 void profile_zone_end(const char *__file__, int __line__, const char *__fun__) {
@@ -146,37 +176,88 @@ void profile_zone_end(const char *__file__, int __line__, const char *__fun__) {
     (void) __line__;
     (void) __fun__;
 
+    Profile_Zone_Array *curent_profiles = &curent_section->sub_sections;
+
     // there could be no zone to end. lookout!
     // there is no need if there was no prev
-    if (profiles.count == 0) return;
+    if (curent_profiles->count == 0) return;
 
-    Profile_Data *last = &profiles.items[profiles.count-1];
+    Profile_Data *last = &curent_profiles->items[curent_profiles->count-1];
     // dont update if the end time is already there
     if (last->end_time != 0) return;
 
-    time_units end = get_time();
+    time_unit end = get_time();
     last->end_time = end;
 }
 
+
+#define DIGITS_OF_PRECISION 3
+// how many tens digits before the '.'
+#define NUM_TENS_DIGITS 3
+// +1 for the dot
+#define PAD_DIGITS (DIGITS_OF_PRECISION + NUM_TENS_DIGITS + 1)
+
+size_t profile_strlen(const char *str) {
+    size_t n = 0;
+    while (*str++) n++;
+    return n;
+}
+
+void profile_print_helper(Profile_Zone_Array *array, int depth) {
+    int max_word_length = 0;
+    for (size_t i = 0; i < array->count; i++) {
+        Profile_Data *data = &array->items[i];
+        int title_len = profile_strlen(data->title);
+        if (max_word_length < title_len) max_word_length = title_len;
+    }
+
+    for (size_t i = 0; i < array->count; i++) {
+        Profile_Data *data = &array->items[i];
+
+        float secs = time_units_to_secs(data->end_time - data->start_time);
+
+        for (int i = 0; i < depth; i++) printf("|   ");
+
+        printf("%-*s", max_word_length, data->title);
+        printf(" : ");
+        printf("%*.*f", PAD_DIGITS, DIGITS_OF_PRECISION, secs);
+        printf("\n");
+
+        if (data->is_section) {
+            profile_print_helper(&data->sub_sections, depth+1);
+        }
+    }
+}
 
 void profile_print(void) {
     // profile_zone_end(); // hmmm? skill issue?
 
     printf("Profiling Results:\n");
-    for (size_t i = 0; i < profiles.count; i++) {
-        Profile_Data *data = &profiles.items[i];
 
-        float secs = time_units_to_secs(data->end_time - data->start_time);
+    // TODO dont assert here...?
+    PROFILE_ASSERT(curent_section == &__base_section);
 
-        int digits_of_precision = 5;
-        int digits_of_pad = 3;
-        // +1 for the dot
-        int pad_digits = digits_of_precision + digits_of_pad + 1;
+    profile_print_helper(&curent_section->sub_sections, 1);
+}
 
-        printf("    %20s : ", data->title);
-        printf("%*.*f", pad_digits, digits_of_precision, secs);
-        printf("\n");
+
+void profile_reset_helper(Profile_Zone_Array *array) {
+    for (size_t i = 0; i < array->count; i++) {
+        Profile_Data *data = &array->items[i];
+
+        if (data->is_section) {
+            profile_reset_helper(&data->sub_sections);
+        }
     }
+
+    if (array->items) free(array->items);
+    array->items = 0;
+    array->count = 0;
+    array->capacity = 0;
+}
+
+void profile_reset(void) {
+    profile_reset_helper(&curent_section->sub_sections);
 }
 
 

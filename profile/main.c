@@ -42,11 +42,11 @@ int main(int argc, char const **argv) {
     srand(time(0));
 
     PROFILE_ZONE("malloc");
-    float *int_array = malloc(array_size * sizeof(float));
+    float *array = malloc(array_size * sizeof(float));
 
     PROFILE_ZONE("initialize the array");
     for (size_t i = 0; i < array_size; i++) {
-        int_array[i] = randf();
+        array[i] = randf() + randf() - 1;
     }
 
     // hmmm...
@@ -55,19 +55,19 @@ int main(int argc, char const **argv) {
     {
         PROFILE_SECTION("calculations");
 
-        PROFILE_ZONE("calculate total");
+        PROFILE_ZONE("total");
         double total = 0;
-        for (size_t i = 0; i < array_size; i++) total += int_array[i];
+        for (size_t i = 0; i < array_size; i++) total += array[i];
         printf("total   : %f\n", total);
 
-        PROFILE_ZONE("calculate total^2");
+        PROFILE_ZONE("total^2");
         double total_2 = 0;
-        for (size_t i = 0; i < array_size; i++) total_2 += int_array[i]*int_array[i];
+        for (size_t i = 0; i < array_size; i++) total_2 += array[i]*array[i];
         printf("total^2 : %f\n", total_2);
 
-        PROFILE_ZONE("calculate total^3");
+        PROFILE_ZONE("total^3");
         double total_3 = 0;
-        for (size_t i = 0; i < array_size; i++) total_3 += int_array[i]*int_array[i]*int_array[i];
+        for (size_t i = 0; i < array_size; i++) total_3 += array[i]*array[i]*array[i];
         printf("total^3 : %f\n", total_3);
 
         PROFILE_SECTION_END();
@@ -75,6 +75,7 @@ int main(int argc, char const **argv) {
 
 
     PROFILE_PRINT();
+    PROFILE_RESET();
 
     return 0;
 }
