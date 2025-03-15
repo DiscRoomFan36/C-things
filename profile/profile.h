@@ -149,11 +149,10 @@ void profile_section_end(const char *__file__, int __line__, const char *__fun__
 // profile the things after this call
 // will stop with next profile.h function call
 void profile_zone(const char *title, const char *__file__, int __line__, const char *__fun__) {
-    time_unit start = get_time();
-
     // end last zone
     profile_zone_end(__file__, __line__, __fun__);
 
+    time_unit start = get_time();
     Profile_Data data = {
         .title = title,
         .start_time = start,
