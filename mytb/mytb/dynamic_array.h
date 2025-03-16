@@ -32,12 +32,12 @@
     } while (0)
 
 
-#define da_free(da)         \
-    do {                    \
-        free((da)->items);  \
-        (da)->items    = 0; \
-        (da)->count    = 0; \
-        (da)->capacity = 0; \
+#define da_free(da)                         \
+    do {                                    \
+        if ((da)->items) free((da)->items); \
+        (da)->items    = 0;                 \
+        (da)->count    = 0;                 \
+        (da)->capacity = 0;                 \
     } while (0)
 
 
