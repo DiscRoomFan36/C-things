@@ -72,6 +72,7 @@ void profile_zone(const char *title, const char *__file__, int __line__, const c
 void profile_zone_end(const char *__file__, int __line__, const char *__fun__);
 
 void profile_print(void);
+void profile_reset(void);
 
 
 #endif // PROFILE_H_
