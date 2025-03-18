@@ -83,7 +83,7 @@ typedef struct Profile_Stats_Array {
 
 
 time_unit get_time(void);
-float time_units_to_secs(time_unit x);
+double time_units_to_secs(time_unit x);
 
 
 int profile_equal(Profile_Data a, Profile_Data b);
@@ -137,8 +137,8 @@ Profile_Data *curent_section = &__base_section;
 time_unit get_time(void) {
     return clock();
 }
-float time_units_to_secs(time_unit x) {
-    return (float) x / (float) CLOCKS_PER_SEC;
+double time_units_to_secs(time_unit x) {
+    return (double) x / (double) CLOCKS_PER_SEC;
 }
 
 int profile_equal(Profile_Data a, Profile_Data b) {
@@ -173,7 +173,7 @@ void profile_section(const char *title, const char *__file__, int __line__, cons
 
     Profile_Data_Array *current_profiles = &curent_section->sub_sections;
 
-    da_append_profile_array(current_profiles, data);
+    profile_da_append(current_profiles, data);
     Profile_Data *last = &current_profiles->items[current_profiles->count-1];
     curent_section = last;
 }
@@ -211,7 +211,7 @@ void profile_zone(const char *title, const char *__file__, int __line__, const c
         .sub_sections = {},
     };
 
-    da_append_profile_array(&curent_section->sub_sections, data);
+    profile_da_append(&curent_section->sub_sections, data);
 }
 
 void profile_zone_end(const char *__file__, int __line__, const char *__fun__) {
@@ -333,14 +333,14 @@ Profile_Stats_Array collect_stats() {
 
             if (maybe_index == -1) {
                 // its not in the array.
-                da_append(&unique_data, checking);
+                profile_da_append(&unique_data, checking);
                 Profile_Stats new_stats = {
                     .title = checking.title,
                     .file = checking.file,
                     .line = checking.line,
                     .func = checking.func,
                 };
-                da_append(&result, new_stats);
+                profile_da_append(&result, new_stats);
                 maybe_index = unique_data.count-1;
             }
 
@@ -348,7 +348,7 @@ Profile_Stats_Array collect_stats() {
             time_unit time = checking.end_time - checking.start_time;
             profile_da_append(&stats->times, time);
 
-            if (checking.is_section) da_append_profile_array(&sections_to_check, checking);
+            if (checking.is_section) profile_da_append(&sections_to_check, checking);
         }
     }
 
@@ -356,6 +356,47 @@ Profile_Stats_Array collect_stats() {
     profile_da_free(&sections_to_check);
 
     return result;
+}
+
+typedef struct Numerical_Average_Bounds {
+    double sample_mean;
+    double standard_deviation;
+    double standard_error;
+    double confidence_interval_upper;
+    double confidence_interval_lower;
+} Numerical_Average_Bounds;
+
+
+#include <math.h>
+
+// in a better world, this would accept an array of doubles...
+// but for now we live in C.
+Numerical_Average_Bounds get_numerical_average(Profile_Stats stats) {
+    double sample_mean = 0;
+    for (size_t i = 0; i < stats.times.count; i++) {
+        double secs = time_units_to_secs(stats.times.items[i]);
+
+        // TODO? use https://en.wikipedia.org/wiki/Kahan_summation_algorithm
+        sample_mean += secs;
+    }
+    sample_mean /= stats.times.count;
+
+    double standard_deviation = 0;
+    for (size_t i = 0; i < stats.times.count; i++) {
+        double secs = time_units_to_secs(stats.times.items[i]);
+
+        // TODO? use https://en.wikipedia.org/wiki/Kahan_summation_algorithm
+        standard_deviation += (secs - sample_mean)*(secs - sample_mean);
+    }
+    standard_deviation /= stats.times.count;
+
+    return (Numerical_Average_Bounds){
+        .sample_mean = sample_mean,
+        .standard_deviation = standard_deviation,
+        .standard_error = standard_deviation / stats.times.count,
+        .confidence_interval_upper = sample_mean + 0.95 * (standard_deviation / sqrt(stats.times.count)),
+        .confidence_interval_lower = sample_mean - 0.95 * (standard_deviation / sqrt(stats.times.count)),
+    };
 }
 
 
