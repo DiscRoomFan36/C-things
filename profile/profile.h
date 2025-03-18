@@ -58,13 +58,35 @@ struct Profile_Data {
     Profile_Data_Array sub_sections;
 };
 
+typedef struct Time_Unit_Array {
+    time_unit *items;
+    size_t count;
+    size_t capacity;
+} Time_Unit_Array;
+
+// collects like Profile data, useing file line and func
+typedef struct Profile_Stats {
+    const char *title;
+
+    const char *file;
+    int         line;
+    const char *func;
+
+    Time_Unit_Array times;
+} Profile_Stats;
+
+typedef struct Profile_Stats_Array {
+    Profile_Stats *items;
+    size_t count;
+    size_t capacity;
+} Profile_Stats_Array;
+
 
 time_unit get_time(void);
 float time_units_to_secs(time_unit x);
 
 
-void da_append_profile_array(Profile_Data_Array *da, Profile_Data item);
-
+int profile_equal(Profile_Data a, Profile_Data b);
 
 void profile_section(const char *title, const char *__file__, int __line__, const char *__fun__);
 void profile_section_end(const char *__file__, int __line__, const char *__fun__);
@@ -74,6 +96,29 @@ void profile_zone_end(const char *__file__, int __line__, const char *__fun__);
 
 void profile_print(void);
 void profile_reset(void);
+
+Profile_Stats_Array collect_stats();
+
+
+#define profile_da_append(da, item)                                                                        \
+    do {                                                                                                   \
+        if ((da)->count >= (da)->capacity) {                                                               \
+            (da)->capacity = (da)->capacity == 0 ? 32 : (da)->capacity*2;                                  \
+            (da)->items = (typeof((da)->items)) realloc((da)->items, (da)->capacity*sizeof(*(da)->items)); \
+            assert((da)->items != NULL && "Buy More RAM lol");                                             \
+        }                                                                                                  \
+                                                                                                           \
+        (da)->items[(da)->count++] = (item);                                                               \
+    } while (0)
+
+#define profile_da_free(da)                 \
+    do {                                    \
+        if ((da)->items) free((da)->items); \
+        (da)->items    = 0;                 \
+        (da)->count    = 0;                 \
+        (da)->capacity = 0;                 \
+    } while (0)
+
 
 
 #endif // PROFILE_H_
@@ -96,15 +141,12 @@ float time_units_to_secs(time_unit x) {
     return (float) x / (float) CLOCKS_PER_SEC;
 }
 
-
-void da_append_profile_array(Profile_Data_Array *da, Profile_Data item) {
-    if (da->count >= da->capacity) {
-        da->capacity = da->capacity == 0 ? 32 : da->capacity*2;
-        da->items = (Profile_Data*) realloc(da->items, da->capacity*sizeof(Profile_Data));
-        PROFILE_ASSERT(da->items != NULL && "Buy More RAM lol");
-    }
-
-    da->items[da->count++] = item;
+int profile_equal(Profile_Data a, Profile_Data b) {
+    if (a.title != b.title) return 0;
+    if (a.file != b.file) return 0;
+    if (a.line != b.line) return 0;
+    if (a.func != b.func) return 0;
+    return 1;
 }
 
 
@@ -259,6 +301,61 @@ void profile_reset_helper(Profile_Data_Array *array) {
 
 void profile_reset(void) {
     profile_reset_helper(&curent_section->sub_sections);
+}
+
+
+int maybe_index_in_array(Profile_Data_Array array, Profile_Data checking) {
+    for (size_t i = 0; i < array.count; i++) {
+        Profile_Data item = array.items[i];
+        if (profile_equal(item, checking)) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+Profile_Stats_Array collect_stats() {
+    Profile_Stats_Array result = {};     // linked arrays
+    Profile_Data_Array unique_data = {}; // linked arrays
+
+    Profile_Data_Array sections_to_check = {};
+    profile_da_append(&sections_to_check, *curent_section);
+
+    while (sections_to_check.count > 0) {
+        Profile_Data cur_section = sections_to_check.items[sections_to_check.count-1];
+        sections_to_check.count -= 1;
+
+        for (size_t i = 0; i < cur_section.sub_sections.count; i++) {
+            Profile_Data checking = cur_section.sub_sections.items[i];
+
+            // check weather this data is in the unique data array.
+            int maybe_index = maybe_index_in_array(unique_data, checking);
+
+            if (maybe_index == -1) {
+                // its not in the array.
+                da_append(&unique_data, checking);
+                Profile_Stats new_stats = {
+                    .title = checking.title,
+                    .file = checking.file,
+                    .line = checking.line,
+                    .func = checking.func,
+                };
+                da_append(&result, new_stats);
+                maybe_index = unique_data.count-1;
+            }
+
+            Profile_Stats *stats = &result.items[maybe_index];
+            time_unit time = checking.end_time - checking.start_time;
+            profile_da_append(&stats->times, time);
+
+            if (checking.is_section) da_append_profile_array(&sections_to_check, checking);
+        }
+    }
+
+    profile_da_free(&unique_data);
+    profile_da_free(&sections_to_check);
+
+    return result;
 }
 
 

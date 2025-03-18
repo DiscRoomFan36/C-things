@@ -74,8 +74,17 @@ int main(int argc, char const **argv) {
     }
 
 
-    PROFILE_PRINT();
+#ifdef PROFILE_CODE
+
+    // TODO display this...
+    Profile_Stats_Array stats = collect_stats();
+
+    profile_da_free(&stats);
+
+#endif
+
     PROFILE_RESET();
+    free(array);
 
     return 0;
 }
