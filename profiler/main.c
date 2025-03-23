@@ -82,7 +82,7 @@ int main(int argc, char const **argv) {
     }
 
 
-#ifdef PROFILER_CODE
+#ifdef PROFILE_CODE
 
     Profiler_Stats_Array stats = collect_stats();
     Double_Array numbers = {0};
