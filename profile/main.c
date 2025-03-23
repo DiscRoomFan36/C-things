@@ -44,36 +44,39 @@ int main(int argc, char const **argv) {
     for (size_t num_iterations = 0; num_iterations < 10; num_iterations++) {
 
         PROFILE_ZONE("malloc");
-        float *array = malloc(array_size * sizeof(float));
+            float *array = malloc(array_size * sizeof(float));
+        PROFILE_ZONE_END();
 
         PROFILE_ZONE("initialize the array");
-        for (size_t i = 0; i < array_size; i++) {
-            array[i] = randf() + randf() - 1;
-        }
+            for (size_t i = 0; i < array_size; i++) {
+                array[i] = randf() + randf() - 1;
+            }
+        PROFILE_ZONE_END();
 
         // hmmm...
         // PROFILE_ZONE_END();
 
-        {
-            PROFILE_SECTION("calculations");
+        PROFILE_ZONE("calculations");
 
             PROFILE_ZONE("total");
-            double total = 0;
-            for (size_t i = 0; i < array_size; i++) total += array[i];
-            printf("total   : %f\n", total);
+                double total = 0;
+                for (size_t i = 0; i < array_size; i++) total += array[i];
+                printf("total   : %f\n", total);
+            PROFILE_ZONE_END();
 
             PROFILE_ZONE("total^2");
-            double total_2 = 0;
-            for (size_t i = 0; i < array_size; i++) total_2 += array[i]*array[i];
-            printf("total^2 : %f\n", total_2);
+                double total_2 = 0;
+                for (size_t i = 0; i < array_size; i++) total_2 += array[i]*array[i];
+                printf("total^2 : %f\n", total_2);
+            PROFILE_ZONE_END();
 
             PROFILE_ZONE("total^3");
-            double total_3 = 0;
-            for (size_t i = 0; i < array_size; i++) total_3 += array[i]*array[i]*array[i];
-            printf("total^3 : %f\n", total_3);
+                double total_3 = 0;
+                for (size_t i = 0; i < array_size; i++) total_3 += array[i]*array[i]*array[i];
+                printf("total^3 : %f\n", total_3);
+            PROFILE_ZONE_END();
 
-            PROFILE_SECTION_END();
-        }
+        PROFILE_ZONE_END();
 
         free(array);
     }
@@ -82,19 +85,31 @@ int main(int argc, char const **argv) {
 #ifdef PROFILE_CODE
 
     Profile_Stats_Array stats = collect_stats();
+    Double_Array numbers = {0};
 
     for (size_t i = 0; i < stats.count; i++) {
         Profile_Stats stat = stats.items[i];
-        Numerical_Average_Bounds nab = get_numerical_average(stat);
+
+        numbers.count = 0;
+        for (size_t i = 0; i < stat.times.count; i++) {
+            profile_da_append(&numbers, stat.times.items[i]);
+        }
+
+        Numerical_Average_Bounds nab = get_numerical_average(numbers);
 
         printf("%-20s : %f +- %f\n", stat.title, nab.sample_mean, nab.standard_deviation);
     }
 
+    for (size_t i = 0; i < stats.count; i++) {
+        profile_da_free(&stats.items[i].times);
+    }
     profile_da_free(&stats);
+    profile_da_free(&numbers);
 
 #endif
 
     PROFILE_RESET();
+    PROFILE_FREE();
 
     return 0;
 }
