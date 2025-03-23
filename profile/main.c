@@ -1,5 +1,5 @@
 //
-// Demo for profile.h
+// Demo for profiler.h
 //
 // DiscRoomFan
 //
@@ -16,8 +16,8 @@
 #include <time.h>
 
 #define PROFILE_CODE
-#define PROFILE_IMPLEMENTATION
-#include "profile.h"
+#define PROFILER_IMPLEMENTATION
+#include "profiler.h"
 
 #define shift(argc, argv) (assert((argc) > 0), (argc)--, *(argv)++)
 
@@ -43,56 +43,56 @@ int main(int argc, char const **argv) {
 
     for (size_t num_iterations = 0; num_iterations < 10; num_iterations++) {
 
-        PROFILE_ZONE("malloc");
+        PROFILER_ZONE("malloc");
             float *array = malloc(array_size * sizeof(float));
-        PROFILE_ZONE_END();
+        PROFILER_ZONE_END();
 
-        PROFILE_ZONE("initialize the array");
+        PROFILER_ZONE("initialize the array");
             for (size_t i = 0; i < array_size; i++) {
                 array[i] = randf() + randf() - 1;
             }
-        PROFILE_ZONE_END();
+        PROFILER_ZONE_END();
 
         // hmmm...
-        // PROFILE_ZONE_END();
+        // PROFILER_ZONE_END();
 
-        PROFILE_ZONE("calculations");
+        PROFILER_ZONE("calculations");
 
-            PROFILE_ZONE("total");
+            PROFILER_ZONE("total");
                 double total = 0;
                 for (size_t i = 0; i < array_size; i++) total += array[i];
                 printf("total   : %f\n", total);
-            PROFILE_ZONE_END();
+            PROFILER_ZONE_END();
 
-            PROFILE_ZONE("total^2");
+            PROFILER_ZONE("total^2");
                 double total_2 = 0;
                 for (size_t i = 0; i < array_size; i++) total_2 += array[i]*array[i];
                 printf("total^2 : %f\n", total_2);
-            PROFILE_ZONE_END();
+            PROFILER_ZONE_END();
 
-            PROFILE_ZONE("total^3");
+            PROFILER_ZONE("total^3");
                 double total_3 = 0;
                 for (size_t i = 0; i < array_size; i++) total_3 += array[i]*array[i]*array[i];
                 printf("total^3 : %f\n", total_3);
-            PROFILE_ZONE_END();
+            PROFILER_ZONE_END();
 
-        PROFILE_ZONE_END();
+        PROFILER_ZONE_END();
 
         free(array);
     }
 
 
-#ifdef PROFILE_CODE
+#ifdef PROFILER_CODE
 
-    Profile_Stats_Array stats = collect_stats();
+    Profiler_Stats_Array stats = collect_stats();
     Double_Array numbers = {0};
 
     for (size_t i = 0; i < stats.count; i++) {
-        Profile_Stats stat = stats.items[i];
+        Profiler_Stats stat = stats.items[i];
 
         numbers.count = 0;
         for (size_t i = 0; i < stat.times.count; i++) {
-            profile_da_append(&numbers, stat.times.items[i]);
+            profiler_da_append(&numbers, stat.times.items[i]);
         }
 
         Numerical_Average_Bounds nab = get_numerical_average(numbers);
@@ -101,15 +101,15 @@ int main(int argc, char const **argv) {
     }
 
     for (size_t i = 0; i < stats.count; i++) {
-        profile_da_free(&stats.items[i].times);
+        profiler_da_free(&stats.items[i].times);
     }
-    profile_da_free(&stats);
-    profile_da_free(&numbers);
+    profiler_da_free(&stats);
+    profiler_da_free(&numbers);
 
 #endif
 
-    PROFILE_RESET();
-    PROFILE_FREE();
+    PROFILER_RESET();
+    PROFILER_FREE();
 
     return 0;
 }
