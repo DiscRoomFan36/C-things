@@ -4,7 +4,7 @@
 #define PROFILER_H_
 
 #ifdef PROFILE_CODE
-    #define PROFILER_ZONE(title) profiler_zone(title, __FILE__, __LINE__, __func__)
+    #define PROFILER_ZONE(title) profiler_zone(title, __FILE__, __LINE__)
     #define PROFILER_ZONE_END()  profiler_zone_end()
 
     #define PROFILER_PRINT() profiler_print()
@@ -38,7 +38,6 @@ typedef struct Profiler_Data {
 
     const char *file; // these could be useful
     int         line; // these could be useful
-    const char *func; // these could be useful
 } Profiler_Data;
 
 typedef struct Profiler_Data_Array {
@@ -78,7 +77,7 @@ double time_units_to_secs(time_unit x);
 
 int profiler_equal(Profiler_Data a, Profiler_Data b);
 
-void profiler_zone(const char *title, const char *__file__, int __line__, const char *__fun__);
+void profiler_zone(const char *title, const char *__file__, int __line__);
 void profiler_zone_end(void);
 
 void profiler_print(void);
@@ -132,14 +131,13 @@ int profiler_equal(Profiler_Data a, Profiler_Data b) {
     if (a.title != b.title) return 0;
     if (a.file != b.file) return 0;
     if (a.line != b.line) return 0;
-    if (a.func != b.func) return 0;
     return 1;
 }
 
 
 // profile the things after this call
 // will stop with profiler_end_zone
-void profiler_zone(const char *title, const char *__file__, int __line__, const char *__fun__) {
+void profiler_zone(const char *title, const char *__file__, int __line__) {
     time_unit start = get_time();
     Profiler_Data data = {
         .title = title,
@@ -148,7 +146,6 @@ void profiler_zone(const char *title, const char *__file__, int __line__, const 
 
         .file = __file__,
         .line = __line__,
-        .func = __fun__,
     };
 
     profiler_da_append(&__base_zones, data);
@@ -241,7 +238,6 @@ Profiler_Stats_Array collect_stats(void) {
                 .title = it.title,
                 .file  = it.file,
                 .line  = it.line,
-                .func  = it.func,
             };
 
             profiler_da_append(&unique_data, it);
