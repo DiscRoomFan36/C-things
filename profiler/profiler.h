@@ -185,18 +185,19 @@ void profiler_print(void) {
 
     int max_word_length = 0;
     for (size_t i = 0; i < __base_zones.count; i++) {
-        Profiler_Data *it = &__base_zones.items[i];
-        int title_len = profiler_strlen(it->title);
+        Profiler_Data it = __base_zones.items[i];
+        int title_len = profiler_strlen(it.title);
         if (max_word_length < title_len) max_word_length = title_len;
     }
 
     for (size_t i = 0; i < __base_zones.count; i++) {
-        Profiler_Data *it = &__base_zones.items[i];
+        Profiler_Data it = __base_zones.items[i];
 
-        float secs = time_units_to_secs(it->end_time - it->start_time);
+        if (it.end_time == 0) continue;
+        float secs = time_units_to_secs(it.end_time - it.start_time);
 
         printf("|   ");
-        printf("%-*s", max_word_length, it->title);
+        printf("%-*s", max_word_length, it.title);
         printf(" : ");
         printf("%*.*f", PAD_DIGITS, DIGITS_OF_PRECISION, secs);
         printf("\n");
@@ -229,6 +230,7 @@ Profiler_Stats_Array collect_stats(void) {
     for (size_t i = 0; i < __base_zones.count; i++) {
         Profiler_Data it = __base_zones.items[i];
 
+        if (it.end_time == 0) continue;
         // check weather this data is in the unique data array.
         int maybe_index = maybe_index_in_array(unique_data, it);
 
