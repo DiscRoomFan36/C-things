@@ -5,7 +5,7 @@
 
 #ifdef PROFILE_CODE
     #define PROFILER_ZONE(title) profiler_zone(title, __FILE__, __LINE__, __func__)
-    #define PROFILER_ZONE_END()  profiler_zone_end(__FILE__, __LINE__, __func__)
+    #define PROFILER_ZONE_END()  profiler_zone_end()
 
     #define PROFILER_PRINT() profiler_print()
     #define PROFILER_RESET() profiler_reset()
@@ -79,7 +79,7 @@ double time_units_to_secs(time_unit x);
 int profiler_equal(Profiler_Data a, Profiler_Data b);
 
 void profiler_zone(const char *title, const char *__file__, int __line__, const char *__fun__);
-void profiler_zone_end(const char *__file__, int __line__, const char *__fun__);
+void profiler_zone_end(void);
 
 void profiler_print(void);
 void profiler_reset(void);
@@ -154,11 +154,7 @@ void profiler_zone(const char *title, const char *__file__, int __line__, const 
     profiler_da_append(&__base_zones, data);
 }
 
-void profiler_zone_end(const char *__file__, int __line__, const char *__fun__) {
-    (void) __file__;
-    (void) __line__;
-    (void) __fun__;
-
+void profiler_zone_end(void) {
     time_unit end = get_time();
 
     for (int i = __base_zones.count-1; i >= 0; i--) {
@@ -172,7 +168,6 @@ void profiler_zone_end(const char *__file__, int __line__, const char *__fun__) 
     }
 
     PROFILER_ASSERT(0 && "Unreachable");
-    // return;
 }
 
 
