@@ -164,7 +164,7 @@ void profiler_zone_end(void) {
         return;
     }
 
-    PROFILER_ASSERT(0 && "Unreachable");
+    PROFILER_ASSERT(0 && "Unreachable: couldn't find a un-ended zone");
 }
 
 
