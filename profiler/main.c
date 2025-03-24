@@ -85,17 +85,11 @@ int main(int argc, char const **argv) {
 #ifdef PROFILE_CODE
 
     Profiler_Stats_Array stats = collect_stats();
-    Double_Array numbers = {0};
 
     for (size_t i = 0; i < stats.count; i++) {
         Profiler_Stats stat = stats.items[i];
 
-        numbers.count = 0;
-        for (size_t i = 0; i < stat.times.count; i++) {
-            profiler_da_append(&numbers, stat.times.items[i]);
-        }
-
-        Numerical_Average_Bounds nab = get_numerical_average(numbers);
+        Numerical_Average_Bounds nab = get_numerical_average(stat.times);
 
         printf("%-20s : %f +- %f\n", stat.title, nab.sample_mean, nab.standard_deviation);
     }
@@ -104,7 +98,6 @@ int main(int argc, char const **argv) {
         profiler_da_free(&stats.items[i].times);
     }
     profiler_da_free(&stats);
-    profiler_da_free(&numbers);
 
 #endif
 
