@@ -15,7 +15,6 @@
 #include <stdlib.h>
 
 #include "ints.h"
-#include "dynamic_array.h"
 #include "String_View.h"
 
 
