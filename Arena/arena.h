@@ -2,7 +2,8 @@
 // arena.h
 //
 // DiscRoomFan
-// created - 03/03/2025
+// created  - 03/03/2025
+// modified - 22/04/2025
 //
 // This is inspired by / taken from:
 // - https://github.com/tsoding/arena
@@ -13,7 +14,10 @@
 #ifndef ARENA_H_
 #define ARENA_H_
 
-#include <stdint.h>
+
+// for number definitions, aka s64
+#include "ints.h"
+
 
 #ifndef ARENA_ASSERT
 #include <assert.h>
@@ -28,8 +32,8 @@ typedef struct Region Region;
 
 struct Region {
     Region *next;
-    size_t count;
-    size_t capacity;
+    s64 count;
+    s64 capacity;
     uintptr_t data[];
 };
 
@@ -39,19 +43,31 @@ typedef struct Arena {
 
 
 // alloc some memory for use in an arena
-void *Arena_alloc(Arena *a, size_t bytes);
+void *Arena_alloc(Arena *a, s64 bytes);
 // realloc and move some memory, dose not free the old pointer.
-void *Arena_realloc(Arena *a, void *old_ptr, size_t old_size, size_t new_size);
+void *Arena_realloc(Arena *a, void *old_ptr, s64 old_size, s64 new_size);
 // resets the arena, keeps the memory.
 void Arena_reset(Arena *a);
 // free the memory.
 void Arena_free(Arena *a);
 
 
+
+#ifndef ARENA_DA_INIT_CAP
+// if there was already something set, use it.
+# ifdef DA_INIT_CAP
+#  define ARENA_DA_INIT_CAP DA_INIT_CAP
+# else
+// else just use the default
+#  define ARENA_DA_INIT_CAP 32
+# endif
+#endif
+
+
 #define arena_da_append(a, da, item)                                                                                                      \
     do {                                                                                                                                  \
         if ((da)->count >= (da)->capacity) {                                                                                              \
-            (da)->capacity = (da)->capacity == 0 ? DA_INIT_CAP : (da)->capacity*2;                                                        \
+            (da)->capacity = (da)->capacity == 0 ? ARENA_DA_INIT_CAP : (da)->capacity*2;                                                  \
             (da)->items = (__typeof__((da)->items)) Arena_realloc((a), (da)->items, (da)->capacity, (da)->capacity*sizeof(*(da)->items)); \
             assert((da)->items != NULL && "Buy More RAM lol");                                                                            \
         }                                                                                                                                 \
@@ -70,7 +86,7 @@ void Arena_free(Arena *a);
 
 // other helpers, not in header
 
-void *arena_memcpy(void *dest, const void *src, size_t n) {
+void *arena_memcpy(void *dest, const void *src, s64 n) {
     char *d = dest;
     const char *s = src;
     for (; n; n--) *d++ = *s++;
@@ -79,7 +95,7 @@ void *arena_memcpy(void *dest, const void *src, size_t n) {
 
 
 // Guarantees a new Region, (Because it asserts)
-Region *new_region(size_t capacity) {
+Region *new_region(s64 capacity) {
     // Region uses come of the end thing.
     Region *new_region = malloc(sizeof(Region) + sizeof(uintptr_t)*capacity);
     ARENA_ASSERT(new_region);
@@ -95,11 +111,11 @@ void free_region(Region *r) {
 }
 
 
-void *Arena_alloc(Arena *a, size_t size_bytes) {
+void *Arena_alloc(Arena *a, s64 size_bytes) {
     // round up the the nearest ptr size
-    size_t size = (size_bytes + sizeof(uintptr_t) - 1) / sizeof(uintptr_t);
- 
-    size_t to_alloc_if_no_room = (size > ARENA_REGION_DEFAULT_CAPACITY) ? size : ARENA_REGION_DEFAULT_CAPACITY;
+    s64 size = (size_bytes + sizeof(uintptr_t) - 1) / sizeof(uintptr_t);
+
+    s64 to_alloc_if_no_room = (size > ARENA_REGION_DEFAULT_CAPACITY) ? size : ARENA_REGION_DEFAULT_CAPACITY;
 
     if (a->last == NULL) {
         ARENA_ASSERT(a->first == NULL);
@@ -135,7 +151,7 @@ void *Arena_alloc(Arena *a, size_t size_bytes) {
     }
 }
 
-void *Arena_realloc(Arena *a, void *old_ptr, size_t old_size, size_t new_size) {
+void *Arena_realloc(Arena *a, void *old_ptr, s64 old_size, s64 new_size) {
     if (new_size <= old_size) return old_ptr;
 
     void *new_ptr = Arena_alloc(a, new_size);
