@@ -38,24 +38,25 @@ typedef struct Arena {
 } Arena;
 
 
-Region *new_region(size_t capacity);
-void free_region(Region *r);
-
+// alloc some memory for use in an arena
 void *Arena_alloc(Arena *a, size_t bytes);
+// realloc and move some memory, dose not free the old pointer.
 void *Arena_realloc(Arena *a, void *old_ptr, size_t old_size, size_t new_size);
+// resets the arena, keeps the memory.
 void Arena_reset(Arena *a);
+// free the memory.
 void Arena_free(Arena *a);
 
 
-#define arena_da_append(a, da, item)                                                          \
-    do {                                                                             \
-        if ((da)->count >= (da)->capacity) {                                         \
-            (da)->capacity = (da)->capacity == 0 ? DA_INIT_CAP : (da)->capacity*2;   \
-            (da)->items = Arena_realloc((a), (da)->items, (da)->capacity, (da)->capacity*sizeof(*(da)->items)); \
-            assert((da)->items != NULL && "Buy More RAM lol");                       \
-        }                                                                            \
-                                                                                     \
-        (da)->items[(da)->count++] = (item);                                         \
+#define arena_da_append(a, da, item)                                                                                                      \
+    do {                                                                                                                                  \
+        if ((da)->count >= (da)->capacity) {                                                                                              \
+            (da)->capacity = (da)->capacity == 0 ? DA_INIT_CAP : (da)->capacity*2;                                                        \
+            (da)->items = (__typeof__((da)->items)) Arena_realloc((a), (da)->items, (da)->capacity, (da)->capacity*sizeof(*(da)->items)); \
+            assert((da)->items != NULL && "Buy More RAM lol");                                                                            \
+        }                                                                                                                                 \
+                                                                                                                                          \
+        (da)->items[(da)->count++] = (item);                                                                                              \
     } while (0)
 
 
@@ -64,6 +65,7 @@ void Arena_free(Arena *a);
 
 #ifdef ARENA_IMPLEMENTATION
 
+// for 'malloc'
 #include <stdlib.h>
 
 // other helpers, not in header
@@ -89,10 +91,6 @@ Region *new_region(size_t capacity) {
     return new_region;
 }
 void free_region(Region *r) {
-    // printf("r->count = %zu\n", r->count);
-    // printf("r->capacity = %zu\n", r->capacity);
-    // printf("r->next = %p\n", r->next);
-
     free(r);
 }
 
