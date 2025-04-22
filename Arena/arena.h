@@ -64,15 +64,16 @@ void Arena_free(Arena *a);
 #endif
 
 
-#define arena_da_append(a, da, item)                                                                                                      \
-    do {                                                                                                                                  \
-        if ((da)->count >= (da)->capacity) {                                                                                              \
-            (da)->capacity = (da)->capacity == 0 ? ARENA_DA_INIT_CAP : (da)->capacity*2;                                                  \
-            (da)->items = (__typeof__((da)->items)) Arena_realloc((a), (da)->items, (da)->capacity, (da)->capacity*sizeof(*(da)->items)); \
-            assert((da)->items != NULL && "Buy More RAM lol");                                                                            \
-        }                                                                                                                                 \
-                                                                                                                                          \
-        (da)->items[(da)->count++] = (item);                                                                                              \
+#define arena_da_append(a, da, item)                                                                                               \
+    do {                                                                                                                           \
+        if ((da)->count >= (da)->capacity) {                                                                                       \
+            __typeof__((da)->capacity) old_cap = (da)->capacity*sizeof(*(da)->items);                                              \
+            (da)->capacity = (da)->capacity == 0 ? ARENA_DA_INIT_CAP : (da)->capacity*2;                                           \
+            (da)->items = (__typeof__((da)->items)) Arena_realloc((a), (da)->items, old_cap, (da)->capacity*sizeof(*(da)->items)); \
+            assert((da)->items != NULL && "Buy More RAM lol");                                                                     \
+        }                                                                                                                          \
+                                                                                                                                   \
+        (da)->items[(da)->count++] = (item);                                                                                       \
     } while (0)
 
 
