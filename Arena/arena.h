@@ -42,8 +42,10 @@ typedef struct Arena {
 } Arena;
 
 
-// alloc some memory for use in an arena
+// alloc some memory for use in an arena, uninitialized
 void *Arena_alloc(Arena *a, s64 bytes);
+// alloc some memory for use in an arena, initalized to 0
+void *Arena_calloc(Arena *a, s64 bytes);
 // realloc and move some memory, dose not free the old pointer.
 void *Arena_realloc(Arena *a, void *old_ptr, s64 old_size, s64 new_size);
 // resets the arena, keeps the memory.
@@ -94,6 +96,12 @@ void *arena_memcpy(void *dest, const void *src, s64 n) {
     return d;
 }
 
+void *arena_memset(void *dest, u8 c, s64 n) {
+    u8 *d = dest;
+    for (; n; n--) *d++ = c;
+    return dest;
+}
+
 
 // Guarantees a new Region, (Because it asserts)
 Region *new_region(s64 capacity) {
@@ -112,9 +120,9 @@ void free_region(Region *r) {
 }
 
 
-void *Arena_alloc(Arena *a, s64 size_bytes) {
+void *Arena_alloc(Arena *a, s64 bytes) {
     // round up the the nearest ptr size
-    s64 size = (size_bytes + sizeof(uintptr_t) - 1) / sizeof(uintptr_t);
+    s64 size = (bytes + sizeof(uintptr_t) - 1) / sizeof(uintptr_t);
 
     s64 to_alloc_if_no_room = (size > ARENA_REGION_DEFAULT_CAPACITY) ? size : ARENA_REGION_DEFAULT_CAPACITY;
 
@@ -151,6 +159,13 @@ void *Arena_alloc(Arena *a, s64 size_bytes) {
         return a->last->data;
     }
 }
+
+void *Arena_calloc(Arena *a, s64 bytes) {
+    void *memory = Arena_alloc(a, bytes);
+    arena_memset(memory, 0, bytes);
+    return memory;
+}
+
 
 void *Arena_realloc(Arena *a, void *old_ptr, s64 old_size, s64 new_size) {
     if (new_size <= old_size) return old_ptr;
