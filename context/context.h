@@ -64,7 +64,7 @@ Context *set_context(Context *new_context);
 #define PUSH_CONTEXT(new)                          \
     for (Context *tmp = set_context(new), *i = 0;  \
         (__intptr_t)i != 1;                        \
-        set_context(tmp), i = (typeof(i))1)        \
+        set_context(tmp), i = (__typeof__(i))1)    \
 
 
 // A "polymorphic" version, that can handle all possible push's.
@@ -74,10 +74,10 @@ Context *set_context(Context *new_context);
 //
 // This macro requires a function with the name "set_context_{to_set}" to exist,
 // and return the old value of the variable, kind of like the 'set_context()' dose
-#define PUSH_CONTEXT_PARTLY(to_set, new)                       \
-    for (typeof(new) tmp = set_context_##to_set(new), *i = 0;  \
-        (__intptr_t)i != 1;                                    \
-        set_context_##to_set(tmp), i = (typeof(new)*)1)        \
+#define PUSH_CONTEXT_PARTLY(to_set, new)                           \
+    for (__typeof__(new) tmp = set_context_##to_set(new), *i = 0;  \
+        (__intptr_t)i != 1;                                        \
+        set_context_##to_set(tmp), i = (__typeof__(new)*)1)        \
 
 
 #endif // CONTEXT_H_
