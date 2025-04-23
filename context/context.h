@@ -19,7 +19,7 @@
 //  USE_EMPTY_CONTEXT
 //      typedef's an empty context, not useful
 //
-//  ASSERT_IN_GET_OR_SET_CONTEXT
+//  NO_ASSERT_IN_GET_OR_SET_CONTEXT
 //      checks for null pointer in 'get_context()'
 //      or 'set_context()' (for the new_context ptr)
 //      (NOTE: You can '#define CONTEXT_ASSERT' to change
@@ -144,18 +144,18 @@ Context *__context = &context_base;
 
 
 // this just define the CONTEXT_ASSERT() function if you dont
-// have it for ASSERT_IN_GET_OR_SET_CONTEXT
-#ifdef ASSERT_IN_GET_OR_SET_CONTEXT
+// have it for NO_ASSERT_IN_GET_OR_SET_CONTEXT
+#ifndef NO_ASSERT_IN_GET_OR_SET_CONTEXT
 
 # ifndef CONTEXT_ASSERT
 #  include <assert.h>
 #  define CONTEXT_ASSERT assert
 # endif // CONTEXT_ASSERT
 
-#endif // ASSERT_IN_GET_OR_SET_CONTEXT
+#endif // NO_ASSERT_IN_GET_OR_SET_CONTEXT
 
 Context *get_context() {
-#ifdef ASSERT_IN_GET_OR_SET_CONTEXT
+#ifndef NO_ASSERT_IN_GET_OR_SET_CONTEXT
     CONTEXT_ASSERT(__context && "context must not be NULL");
 #endif
 
@@ -163,7 +163,7 @@ Context *get_context() {
 }
 
 Context *set_context(Context *new_context) {
-#ifdef ASSERT_IN_GET_OR_SET_CONTEXT
+#ifndef NO_ASSERT_IN_GET_OR_SET_CONTEXT
     CONTEXT_ASSERT(new_context && "set_context was passed a NULL pointer");
 #endif
 

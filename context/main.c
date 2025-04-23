@@ -20,7 +20,6 @@ typedef struct Context {
 } Context;
 
 #define CONTEXT_IMPLEMENTATION
-#define ASSERT_IN_GET_OR_SET_CONTEXT
 #include "context.h"
 
 
