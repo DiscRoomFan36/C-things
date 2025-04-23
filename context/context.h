@@ -48,7 +48,7 @@ typedef struct Context {} Context;
 
 // Use this function to get the current context,
 // Dont pass the pointer to the context around, use this.
-Context *get_context();
+Context *get_context(void);
 
 // Use this function to set the context.
 // All future calls to 'get_context()' will use the supplied context.
@@ -154,7 +154,7 @@ Context *__context = &context_base;
 
 #endif // NO_ASSERT_IN_GET_OR_SET_CONTEXT
 
-Context *get_context() {
+Context *get_context(void) {
 #ifndef NO_ASSERT_IN_GET_OR_SET_CONTEXT
     CONTEXT_ASSERT(__context && "context must not be NULL");
 #endif
