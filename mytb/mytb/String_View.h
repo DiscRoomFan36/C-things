@@ -55,6 +55,11 @@ s64 find_index_of(SV s, SV needle);
 // finds the line at index, and returns a SV of the line, strips, '\n'
 SV get_single_line(SV s, s64 index);
 
+// advance the data, subtract the size, in place
+void SV_advance(SV *s, s64 count);
+// advance the data, subtract the size, returns a new copy
+SV SV_advanced(SV s, s64 count);
+
 // TODO more functions
 
 #endif // STRING_VIEW_H_
@@ -195,6 +200,16 @@ SV get_single_line(SV s, s64 i) {
     }
 
     return result;
+}
+
+
+void SV_advance(SV *s, s64 count) {
+    s->data += count;
+    s->size -= count;
+}
+
+SV SV_advanced(SV s, s64 count) {
+    return (SV){.data = s.data + count, .size = s.size -= count};
 }
 
 
