@@ -24,8 +24,8 @@ typedef u32 bool32;
 typedef float  f32;
 typedef double f64;
 
-#define False (0)
-#define True  (1)
+#define True  (0 == 0)
+#define False (0 != 0)
 
 
 #endif // INT_TYPES
