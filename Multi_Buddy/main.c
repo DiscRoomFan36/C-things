@@ -1,4 +1,35 @@
 
+/*
+NO UNITY BUILD
+Single threaded : 25.250537
+Multi buddy     : 6.048996
+speedup: 4.174335x
+
+UNITY BUILD
+Single threaded : 25.846742
+Multi buddy     : 6.391358
+speedup: 4.044014x
+*/
+//
+// a roughly 4x speedup from 12 Core Computer.
+// kinda bad, but 4x is 4x,
+//
+// this could be faster if you made some sort of macro system.
+// I think, (aka i have basically no justification but what ever),
+// the reason its nowhere close to being 10x-11x (no multithreading
+// is a perfect speedup) is because the compiler can't optimize
+// though too many function pointer barriers.
+//
+// what i mean is, when the buddy threads get some work, they get a
+// function to call on every element in the array, but it comes
+// though a function pointer, so it could be any function.
+// (but its not)
+//
+// Jai would fix this problem
+//
+
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
