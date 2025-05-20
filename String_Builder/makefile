@@ -3,7 +3,7 @@ CC = clang
 CFLAGS = -Wall -Wextra -ggdb -pedantic
 # CFLAGS += -O2
 
-main: main.c String_View.h
+main: main.c String_View.h String_Builder.h
 	$(CC) $(CFLAGS) -o main main.c
 
 clean:
