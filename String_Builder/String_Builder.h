@@ -87,8 +87,7 @@ typedef struct String_Builder {
 
 // current size of the string being built.
 s64 SB_count(String_Builder *sb);
-// how much space the builder has
-//
+// how much space the builder has.
 // NOTE. some space will be wasted, for performance reasons.
 s64 SB_capacity(String_Builder *sb);
 
