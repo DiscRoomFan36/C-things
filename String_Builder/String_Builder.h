@@ -24,10 +24,11 @@
 #define NUM_BUFFERS 32
 
 
-// if you want to define your own malloc
+// if you want to define your own malloc and free
 #ifndef STRING_BUILDER_MALLOC
 #    include <stdlib.h>
 #    define STRING_BUILDER_MALLOC(size) malloc(size)
+#    define STRING_BUILDER_FREE(ptr)    free(ptr)
 #endif
 
 
@@ -159,7 +160,7 @@ local void SB_memset(void *dest, u8 to_set, s64 n) {
 
 local void free_buffer(Character_Buffer *buffer) {
     if (buffer->data) {
-        free(buffer->data);
+        STRING_BUILDER_FREE(buffer->data);
         buffer->data     = NULL;
         buffer->count    = 0;
         buffer->capacity = 0;
@@ -375,7 +376,7 @@ void SB_free(String_Builder *sb) {
         Segment *current_segment = sb->first_segment_holder.next;
         while (current_segment) {
             Segment *tmp = current_segment->next;
-            free(current_segment);
+            STRING_BUILDER_FREE(current_segment);
             current_segment = tmp;
         }
     }
