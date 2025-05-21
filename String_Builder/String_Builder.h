@@ -1,9 +1,19 @@
+//
+// String_Builder.h - An efficient implementation of a the String Builder Data-structure.
+//
+// By Fletcher M.
+//
+// Created  : 21/05/2025
+// Modified : 21/05/2025
+//
 
 #ifndef STRING_BUILDER_H_
 #define STRING_BUILDER_H_
 
 
 #include "ints.h"
+// I _could_ put this under a #ifdef, but who cares. String_view.h is good.
+// String_Builder only relies on the definition of a SV struct anyway. not any of the functions.
 #include "String_View.h"
 
 
