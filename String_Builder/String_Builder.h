@@ -285,32 +285,11 @@ s64 SB_capacity(String_Builder *sb) {
 SV SB_to_SV(String_Builder *sb) {
     STRING_BUILDER_ASSERT(sb && "NULL 'sb' passed into SB_to_SV()");
 
-    // find the total size of the new string view
-    s64 total_size = 0;
-
-    { // @Copypasta This loop over all segments is a little gnarly.
-        s64 buffer_index = sb->buffer_index;
-        Segment *current_segment = &sb->first_segment_holder;
-        // get the stuff in the full segments.
-        while (buffer_index > NUM_BUFFERS) {
-            for (s64 i = 0; i < NUM_BUFFERS; i++) {
-                Character_Buffer *buffer = &current_segment->buffers[i];
-                total_size += buffer->count;
-            }
-            buffer_index -= NUM_BUFFERS;
-            current_segment = current_segment->next;
-            STRING_BUILDER_ASSERT(current_segment);
-        }
-        // finish off the non full segment
-        for (s64 i = 0; i <= buffer_index; i++) {
-            Character_Buffer *buffer = &current_segment->buffers[i];
-            total_size += buffer->count;
-        }
-    }
+    s64 new_string_size = SB_count(sb);
 
     SV result = {
-        .data = STRING_BUILDER_MALLOC(total_size+1), // +1 for null byte, (for c_string compatiblity)
-        .size = total_size,
+        .data = STRING_BUILDER_MALLOC(new_string_size+1), // +1 for null byte, (for c_string compatiblity)
+        .size = new_string_size,
     };
     STRING_BUILDER_ASSERT(result.data && "SB_malloc failed when trying to allocate enough memory to hold to result string from SB_to_SV");
 
@@ -338,7 +317,7 @@ SV SB_to_SV(String_Builder *sb) {
         }
     }
 
-    STRING_BUILDER_ASSERT(index == total_size);
+    STRING_BUILDER_ASSERT(index == new_string_size);
     result.data[index] = '\0'; // Null byte for c string's
 
     return result;
