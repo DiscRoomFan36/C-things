@@ -291,7 +291,7 @@ SV SB_to_SV(String_Builder *sb) {
         .data = STRING_BUILDER_MALLOC(new_string_size+1), // +1 for null byte, (for c_string compatiblity)
         .size = new_string_size,
     };
-    STRING_BUILDER_ASSERT(result.data && "SB_malloc failed when trying to allocate enough memory to hold to result string from SB_to_SV");
+    STRING_BUILDER_ASSERT(result.data && "SB_malloc failed when trying to allocate enough memory to hold to result string from SB_to_SV()");
 
     // put all the strings into the new buffer.
     s64 index = 0;
