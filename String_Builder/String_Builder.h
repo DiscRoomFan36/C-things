@@ -17,31 +17,42 @@
 #include "String_View.h"
 
 
-// How much to allocate in a single page, is equal to the default page size in windows and linux.
-#define BUFFER_DEFAULT_SIZE 4096
-// How many segments in a single Segment.
+// How many segments in a single Segment Structure.
 // This Should be a power of 2 for speed. (see maybe_expand_to_fit: sb->buffer_index % NUM_BUFFERS == 0)
+//
+// (Not putting this one in an ifndef, if you want to change this, change this.)
 #define NUM_BUFFERS 32
 
 
-// if you want to define your own malloc and free
-#ifndef STRING_BUILDER_MALLOC
-#    include <stdlib.h>
-#    define STRING_BUILDER_MALLOC(size) malloc(size)
-#    define STRING_BUILDER_FREE(ptr)    free(ptr)
-#endif
+// Implementation defines you might be interested in.
+#ifdef STRING_BUILDER_IMPLEMENTATION
 
-// if you want to define your own assert.
-#ifndef STRING_BUILDER_ASSERT
-#    include <assert.h>
-#    define STRING_BUILDER_ASSERT(expr) assert(expr)
-#endif
+    // how much to alloc by default when a new segment of memory is needed.
+    #ifndef BUFFER_DEFAULT_SIZE
+    // 4096 bytes is equal to the default page size in windows and linux.
+    #define BUFFER_DEFAULT_SIZE 4096
+    #endif
+
+    // if you want to define your own malloc and free
+    #ifndef STRING_BUILDER_MALLOC
+    #include <stdlib.h>
+    #define STRING_BUILDER_MALLOC(size) malloc(size)
+    #define STRING_BUILDER_FREE(ptr)    free(ptr)
+    #endif
+
+    // if you want to define your own assert.
+    #ifndef STRING_BUILDER_ASSERT
+    #include <assert.h>
+    #define STRING_BUILDER_ASSERT(expr) assert(expr)
+    #endif
+
+#endif // STRING_BUILDER_IMPLEMENTATION
 
 
 // if you dont want a dependency on STDLIB, define this.
 // NOTE. functions like SB_printf relies on stdlib.h
 #ifndef SB_NO_STDLIB
-#    define STRING_BUILDER_USE_STDLIB_
+#define STRING_BUILDER_USE_STDLIB_
 #endif
 
 
@@ -78,6 +89,7 @@ typedef struct String_Builder {
 
 
     // the current segment were working on.
+    // if its pointing to NULL, (aka you just zero initalized it), it will be set to a pointer to 'first_segment_holder'
     Segment *current_segment;
 
     // last buffer in use.
