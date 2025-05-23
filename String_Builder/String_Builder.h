@@ -33,17 +33,21 @@
     #define BUFFER_DEFAULT_SIZE 4096
     #endif
 
-    // if you want to define your own malloc and free
+    // if you want to define your own 'malloc' and 'free'
     #ifndef STRING_BUILDER_MALLOC
     #include <stdlib.h>
     #define STRING_BUILDER_MALLOC(size) malloc(size)
     #define STRING_BUILDER_FREE(ptr)    free(ptr)
     #endif
 
-    // if you want to define your own assert.
-    #ifndef STRING_BUILDER_ASSERT
+    // This macro is called when something goes wrong. Recommended to just use assert.
+    // But in some cases assert can be compiled out, if this happens, the program will still sortof function.
+    //
+    // If the macro dose nothing, (or doesn't exist,) the results of some operations will return NULL/base values.
+    // or do no work at all. use at your own risk.
+    #ifndef STRING_BUILDER_PANIC
     #include <assert.h>
-    #define STRING_BUILDER_ASSERT(expr) assert(expr)
+    #define STRING_BUILDER_PANIC(error_text) assert(False && error_text)
     #endif
 
 #endif // STRING_BUILDER_IMPLEMENTATION
@@ -191,7 +195,10 @@ local void free_buffer(Character_Buffer *buffer) {
 local Character_Buffer *maybe_expand_to_fit(String_Builder *sb, s64 size) {
     // no need to null check sb here, only null check where the user could reach.
 
-    STRING_BUILDER_ASSERT(size >= 0 && "negative size passed into maybe_expand_to_fit()");
+    if (size < 0) {
+        STRING_BUILDER_PANIC("negative size passed into maybe_expand_to_fit()");
+        return NULL; // gotta NULL check every call site. only needed when assert is compiled out.
+    }
 
     // set the current segment to the first segment if its null (aka just after zero initialization)
     if (sb->current_segment == NULL) sb->current_segment = &sb->first_segment_holder;
@@ -214,8 +221,13 @@ local Character_Buffer *maybe_expand_to_fit(String_Builder *sb, s64 size) {
                 // we need to make a new segment holder
                 // make sure to init to 0
                 sb->current_segment->next = STRING_BUILDER_MALLOC(sizeof(Segment));
+
+                if (!sb->current_segment->next) {
+                    STRING_BUILDER_PANIC("String Builder - maybe_expand_to_fit: failed to malloc a new segment holder");
+                    return NULL;
+                }
+
                 SB_memset(sb->current_segment->next, 0, sizeof(Segment));
-                STRING_BUILDER_ASSERT(sb->current_segment->next && "maybe_expand_to_fit: failed to malloc a new segment holder");
             }
             sb->current_segment = sb->current_segment->next;
         }
@@ -223,18 +235,24 @@ local Character_Buffer *maybe_expand_to_fit(String_Builder *sb, s64 size) {
         last_buffer = &sb->current_segment->buffers[sb->buffer_index % NUM_BUFFERS];
     }
 
-    STRING_BUILDER_ASSERT(last_buffer);
-    STRING_BUILDER_ASSERT((last_buffer->capacity == 0) || (size + last_buffer->count <= last_buffer->capacity));
 
     if (last_buffer->capacity == 0) {
-        STRING_BUILDER_ASSERT(sb->base_new_allocation >= 0 && "Base new allocation < 0 is not allowed.");
+        if (sb->base_new_allocation < 0) {
+            STRING_BUILDER_PANIC("Base new allocation < 0 is not allowed.");
+            return NULL;
+        }
 
         // if base_new_allocation is not zero, use it, else use default macro.
         s64 default_size = (sb->base_new_allocation > 0) ? sb->base_new_allocation : BUFFER_DEFAULT_SIZE;
         s64 to_add_size = (size < default_size) ? default_size : size;
 
         last_buffer->data = STRING_BUILDER_MALLOC(to_add_size);
-        STRING_BUILDER_ASSERT(last_buffer->data && "maybe_expand_to_fit: failed to malloc a new segment with to_add_size");
+
+        if (!last_buffer->data) {
+            STRING_BUILDER_PANIC("maybe_expand_to_fit: failed to malloc a new segment with to_add_size");
+            return NULL;
+        }
+
         last_buffer->count = 0;
         last_buffer->capacity = to_add_size;
     }
@@ -249,7 +267,10 @@ local Character_Buffer *maybe_expand_to_fit(String_Builder *sb, s64 size) {
 // ---------------------------------------------
 
 s64 SB_count(String_Builder *sb) {
-    STRING_BUILDER_ASSERT(sb && "NULL 'sb' passed into SB_count()");
+    if (!sb) {
+        STRING_BUILDER_PANIC("NULL 'sb' passed into SB_count()");
+        return 0;
+    }
 
     s64 count = 0;
 
@@ -264,7 +285,11 @@ s64 SB_count(String_Builder *sb) {
             }
             buffer_index -= NUM_BUFFERS;
             current_segment = current_segment->next;
-            STRING_BUILDER_ASSERT(current_segment);
+
+            if (!current_segment) {
+                STRING_BUILDER_PANIC("SB_count: something internal went wrong.");
+                return 0;
+            }
         }
         // finish off the non full segment
         for (s64 i = 0; i <= buffer_index; i++) {
@@ -277,7 +302,10 @@ s64 SB_count(String_Builder *sb) {
 }
 
 s64 SB_capacity(String_Builder *sb) {
-    STRING_BUILDER_ASSERT(sb && "NULL 'sb' passed into SB_capacity()");
+    if (!sb) {
+        STRING_BUILDER_PANIC("NULL 'sb' passed into SB_capacity()");
+        return 0;
+    }
 
     s64 capacity = 0;
 
@@ -295,15 +323,22 @@ s64 SB_capacity(String_Builder *sb) {
 
 
 SV SB_to_SV(String_Builder *sb) {
-    STRING_BUILDER_ASSERT(sb && "NULL 'sb' passed into SB_to_SV()");
+    SV result = {0};
+
+    if (!sb) {
+        STRING_BUILDER_PANIC("NULL 'sb' passed into SB_to_SV()");
+        return result;
+    }
 
     s64 new_string_size = SB_count(sb);
 
-    SV result = {
-        .data = STRING_BUILDER_MALLOC(new_string_size+1), // +1 for null byte, (for c_string compatiblity)
-        .size = new_string_size,
-    };
-    STRING_BUILDER_ASSERT(result.data && "SB_malloc failed when trying to allocate enough memory to hold to result string from SB_to_SV()");
+    result.data = STRING_BUILDER_MALLOC(new_string_size+1); // +1 for null byte, (for c_string compatiblity)
+    if (!result.data) {
+        STRING_BUILDER_PANIC("SB_malloc failed when trying to allocate enough memory to hold to result string from SB_to_SV()");
+        return result;
+    }
+
+    result.size = new_string_size;
 
     // put all the strings into the new buffer.
     s64 index = 0;
@@ -319,7 +354,14 @@ SV SB_to_SV(String_Builder *sb) {
             }
             buffer_index -= NUM_BUFFERS;
             current_segment = current_segment->next;
-            STRING_BUILDER_ASSERT(current_segment);
+
+            if (!current_segment) {
+                STRING_BUILDER_PANIC("SB_to_SV: something internal went wrong.");
+                STRING_BUILDER_FREE(result.data);
+                result.data = NULL;
+                result.size = 0;
+                return result;
+            }
         }
         // finish off the non full segment
         for (s64 i = 0; i <= buffer_index; i++) {
@@ -329,7 +371,10 @@ SV SB_to_SV(String_Builder *sb) {
         }
     }
 
-    STRING_BUILDER_ASSERT(index == new_string_size);
+    if (index != new_string_size) {
+        STRING_BUILDER_PANIC("SB_to_SV: something internal went wrong (2)");
+        // return; // we just fall through here, something bad is already going on, at least you get your string back I guess?
+    }
     result.data[index] = '\0'; // Null byte for c string's
 
     return result;
@@ -337,7 +382,10 @@ SV SB_to_SV(String_Builder *sb) {
 
 
 void SB_reset(String_Builder *sb) {
-    STRING_BUILDER_ASSERT(sb && "NULL 'sb' passed into SB_reset()");
+    if (!sb) {
+        STRING_BUILDER_PANIC("NULL 'sb' passed into SB_reset()");
+        return;
+    }
 
     // @Copypasta This loop over all segments is a little gnarly. maybe a helper macro would not go astray...
     s64 buffer_index = sb->buffer_index;
@@ -350,7 +398,11 @@ void SB_reset(String_Builder *sb) {
         }
         buffer_index -= NUM_BUFFERS;
         current_segment = current_segment->next;
-        STRING_BUILDER_ASSERT(current_segment);
+
+        if (!current_segment) {
+            STRING_BUILDER_PANIC("SB_reset: something internal went wrong.");
+            return;
+        }
     }
     // finish off the non full segment
     for (s64 i = 0; i <= buffer_index; i++) {
@@ -363,7 +415,10 @@ void SB_reset(String_Builder *sb) {
 }
 
 void SB_free(String_Builder *sb) {
-    STRING_BUILDER_ASSERT(sb && "NULL 'sb' passed into SB_free()");
+    if (!sb) {
+        STRING_BUILDER_PANIC("NULL 'sb' passed into SB_free()");
+        return;
+    }
 
     // @Copypasta This loop over all segments is a little gnarly. maybe a helper macro would not go astray...
     s64 buffer_index = sb->buffer_index;
@@ -376,7 +431,11 @@ void SB_free(String_Builder *sb) {
         }
         buffer_index -= NUM_BUFFERS;
         current_segment = current_segment->next;
-        STRING_BUILDER_ASSERT(current_segment);
+
+        if (!current_segment) {
+            STRING_BUILDER_PANIC("SB_free: something internal went wrong.");
+            return;
+        }
     }
     // finish off the non full segment
     for (s64 i = 0; i <= buffer_index; i++) {
@@ -401,30 +460,56 @@ void SB_free(String_Builder *sb) {
 
 
 void SB_add_pointer_and_size(String_Builder *sb, char *ptr, s64 size) {
-    STRING_BUILDER_ASSERT(sb && "NULL 'sb' passed into SB_add_pointer_and_size()");
+    if (!sb) {
+        STRING_BUILDER_PANIC("NULL 'sb' passed into SB_add_pointer_and_size()");
+        return;
+    }
 
-    STRING_BUILDER_ASSERT(size >= 0 && "negative 'size' passed into SB_add_pointer_and_size()");
-    if (size == 0) return;
+    if (size < 0) {
+        STRING_BUILDER_PANIC("negative 'size' passed into SB_add_pointer_and_size()");
+        return;
+    }
 
     // if it has zero size, its fine for 'ptr' to be null
-    STRING_BUILDER_ASSERT(ptr && "NULL 'ptr' passed into SB_add_pointer_and_size(), when 'size' was not zero.");
+    if (size == 0) return;
+
+    if (!ptr) {
+        STRING_BUILDER_PANIC("NULL 'ptr' passed into SB_add_pointer_and_size(), when 'size' was not zero.");
+        return;
+    }
 
     Character_Buffer *buffer = maybe_expand_to_fit(sb, size);
+
+    if (!buffer) {
+        return; // maybe_expand_to_fit has already raised the panic.
+    }
 
     SB_memcpy(buffer->data + buffer->count, ptr, size);
     buffer->count += size;
 }
 
 void SB_add_C_str(String_Builder *sb, const char *c_str) {
-    STRING_BUILDER_ASSERT(sb && "NULL 'sb' passed into SB_add_C_str()");
-    STRING_BUILDER_ASSERT(c_str && "NULL 'c_ptr' passed into SB_add_C_str()");
+    if (!sb) {
+        STRING_BUILDER_PANIC("NULL 'sb' passed into SB_add_C_str()");
+        return;
+    }
+    if (!c_str) {
+        STRING_BUILDER_PANIC("NULL 'c_ptr' passed into SB_add_C_str()");
+        return;
+    }
 
     SB_add_pointer_and_size(sb, (char*)c_str, SB_strlen(c_str));
 }
 
 void SB_add_SV(String_Builder *sb, SV sv) {
-    STRING_BUILDER_ASSERT(sb && "NULL 'sb' passed into SB_add_SV()");
-    STRING_BUILDER_ASSERT(sv.size >= 0 && "negative 'size' passed into SB_add_SV()");
+    if (!sb) {
+        STRING_BUILDER_PANIC("NULL 'sb' passed into SB_add_SV()");
+        return;
+    }
+    if (sv.size < 0) {
+        STRING_BUILDER_PANIC("negative 'size' passed into SB_add_SV()");
+        return;
+    }
 
     SB_add_pointer_and_size(sb, sv.data, sv.size);
 }
@@ -437,8 +522,14 @@ void SB_add_SV(String_Builder *sb, SV sv) {
 
 
 void SB_to_file(String_Builder *sb, FILE *file) {
-    STRING_BUILDER_ASSERT(sb && "NULL 'sb' passed into SB_to_file()");
-    STRING_BUILDER_ASSERT(file && "NULL 'file' passed into SB_to_file()");
+    if (!sb) {
+        STRING_BUILDER_PANIC("NULL 'sb' passed into SB_to_file()");
+        return;
+    }
+    if (!file) {
+        STRING_BUILDER_PANIC("NULL 'file' passed into SB_to_file()");
+        return;
+    }
 
     // @Copypasta This loop over all segments is a little gnarly. maybe a helper macro would not go astray...
     s64 buffer_index = sb->buffer_index;
@@ -451,8 +542,13 @@ void SB_to_file(String_Builder *sb, FILE *file) {
         }
         buffer_index -= NUM_BUFFERS;
         current_segment = current_segment->next;
-        STRING_BUILDER_ASSERT(current_segment);
+
+        if (!current_segment) {
+            STRING_BUILDER_PANIC("SB_to_file: something internal went wrong.");
+            return;
+        }
     }
+
     // finish off the non full segment
     for (s64 i = 0; i <= buffer_index; i++) {
         Character_Buffer *buffer = &current_segment->buffers[i];
@@ -461,8 +557,14 @@ void SB_to_file(String_Builder *sb, FILE *file) {
 }
 
 s64 SB_printf(String_Builder *sb, const char *format, ...) {
-    STRING_BUILDER_ASSERT(sb && "NULL 'sb' passed into SB_printf()");
-    STRING_BUILDER_ASSERT(format && "NULL 'format' passed into SB_printf()");
+    if (!sb) {
+        STRING_BUILDER_PANIC("NULL 'sb' passed into SB_printf()");
+        return 0;
+    }
+    if (!format) {
+        STRING_BUILDER_PANIC("NULL 'format' passed into SB_printf()");
+        return 0;
+    }
 
     va_list args;
 
@@ -477,11 +579,13 @@ s64 SB_printf(String_Builder *sb, const char *format, ...) {
     // we ignore that for the rest of the code.
     Character_Buffer *buffer = maybe_expand_to_fit(sb, formatted_size+1);
 
-    va_start(args, format);
-        s64 n = vsprintf(buffer->data + buffer->count, format, args);
-    va_end(args);
+    if (!buffer) {
+        return 0; // maybe_expand_to_fit has already raised the panic.
+    }
 
-    STRING_BUILDER_ASSERT(n == formatted_size);
+    va_start(args, format);
+        vsprintf(buffer->data + buffer->count, format, args);
+    va_end(args);
 
     buffer->count += formatted_size;
 
