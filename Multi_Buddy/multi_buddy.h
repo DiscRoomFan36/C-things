@@ -6,30 +6,23 @@
 #include "ints.h"
 
 
-struct void_star_array {
-    void *items;
-    s64 count;
-    s64 capacity;
-};
-
-
 // call at the start of your program to start some background threads.
 void init_multi_buddy(void);
 
 // call at the end to shut down the background threads.
 void shut_down_multi_buddy(void);
 
-
-// how many times it runs the function in a batch.
-// this is way faster than running one at a time.
+// the type of the function you pass into 'run_function_on_array_with_buddies()'.
 //
-// although it could degenerate if one run of the function takes a long time,
-// or the array your working on is to small, to small for the batch size.
-#define THREAD_BATCH_SIZE 512
-
-
+// A function that takes a pointer to something.
+// will be called with every element in the array.
 typedef void (*Buddy_Work_Function)(void*);
 
+// run 'func' on every element in the array 'array'.
+//
+// uses multithreading to get a bit of a speed bump.
+//
+// works better with higher element counts
 void run_function_on_array_with_buddies(void *array, s64 item_size, s64 count, Buddy_Work_Function func);
 
 
@@ -49,10 +42,20 @@ void run_function_on_array_with_buddies(void *array, s64 item_size, s64 count, B
 #define local static
 
 
+// maximum amount of buddies, who has a more than 64 cores anyway? (No, GPU's dont count.)
+#define NUM_MAX_BUDDY_THREADS 64
+
+
+// How many times it runs the function in a batch.
+// This is way faster than running one at a time.
+//
+// Although it could degenerate if one run of the function takes a long time,
+// or the array your working on is to small for the batch size.
+#define THREAD_BATCH_SIZE 512
+
+
 // so you can call the init and shut down functions multiple times
 bool32 has_been_initalized = False;
-
-#define NUM_MAX_BUDDY_THREADS 64
 
 // the idents of the buddy threads.
 //
@@ -63,23 +66,27 @@ s64 buddy_thread_count = 0;
 
 
 // what the thread's wait on when not doing anything
+// This get initalized in init_multi_buddy
 pthread_barrier_t work_barrier;
 
 bool32 shut_down_buddy_workers = False;
 
+// These are the variables that are given to every thread, so they know what work to do.
 void *work_array;
 s64 work_item_size;
 s64 work_count;
-// a function that takes in a pointer to void, and returns void.
 Buddy_Work_Function work_function;
 
+
+// the thread's use this to quickly grab batches of work to do.
 _Atomic s64 atomic_counter;
 
 
 // the function all buddy threads run. will be waiting for some input
 local void *buddy_thread_function(void *arg) {
+    // id is a number from [0..buddy_thread_count-1]
     s64 id = (s64) arg;
-    (void) id;
+    assert(0 <= id && id < buddy_thread_count);
 
     // printf("Hello from thread %ld\n", id);
 
@@ -88,8 +95,9 @@ local void *buddy_thread_function(void *arg) {
         pthread_barrier_wait(&work_barrier);
 
         // shut down
-        if (shut_down_buddy_workers) return NULL;
+        if (shut_down_buddy_workers) break;
 
+#if 1
         // its working time!
         while (True) {
             s64 current_item = atomic_fetch_add(&atomic_counter, THREAD_BATCH_SIZE);
@@ -97,10 +105,9 @@ local void *buddy_thread_function(void *arg) {
             // if we've don all the items, exit
             if (current_item >= work_count) break;
 
-            // else their is some work to do.
+            // else there is some work to do.
             char *array_as_chars = work_array;
 
-#if 1
             if (current_item + THREAD_BATCH_SIZE <= work_count) {
                 // best case we have the full batch amount of work to do.
                 // the compiler will hopefully optimize this into something cool.
@@ -114,16 +121,40 @@ local void *buddy_thread_function(void *arg) {
                     work_function(array_as_chars + (work_item_size * (current_item + i)));
                 }
             }
-#else
-            for (s64 i = 0; i < THREAD_BATCH_SIZE && current_item + i < work_count; i++) {
-                    work_function(array_as_chars + (work_item_size * (current_item + i)));
-            }
-#endif
         }
+#else
+        // calculate how much work to do.
+
+        s64 average_work  = work_count / buddy_thread_count;
+        s64 leftover_work = work_count % buddy_thread_count;
+
+        // how much work it should do.
+        s64 my_work_to_do = average_work + (id < leftover_work);
+        // what index in the array this thread starts at.
+        s64 my_work_start = (average_work*id) + (id < leftover_work ? id : leftover_work);
+
+        char *array_as_chars = work_array;
+
+        // chunking for speed.
+        while (my_work_to_do >= THREAD_BATCH_SIZE) {
+            for (size_t i = 0; i < THREAD_BATCH_SIZE; i++) {
+                work_function(array_as_chars + (work_item_size * (i + my_work_start)));
+            }
+            my_work_to_do -= THREAD_BATCH_SIZE;
+            my_work_start += THREAD_BATCH_SIZE;
+        }
+
+        for (s64 i = 0; i < my_work_to_do; i++) {
+            work_function(array_as_chars + (work_item_size * (i + my_work_start)));
+        }
+#endif
 
         // we are done working! now wait for the others.
         pthread_barrier_wait(&work_barrier);
     }
+
+    // finishing up
+    return NULL;
 }
 
 void init_multi_buddy(void) {
@@ -133,6 +164,7 @@ void init_multi_buddy(void) {
     // determine how many threads we should spawn
     s64 numCPU = sysconf(_SC_NPROCESSORS_ONLN);
     assert(numCPU > 0);
+
     // just spawns number of threads equal to number of cores.
     s64 how_many_threads = (numCPU < NUM_MAX_BUDDY_THREADS) ? numCPU : NUM_MAX_BUDDY_THREADS;
 
@@ -141,13 +173,16 @@ void init_multi_buddy(void) {
 
     shut_down_buddy_workers = False;
 
+    buddy_thread_count = how_many_threads;
+
     for (s64 i = 0; i < how_many_threads; i++) {
         pthread_create(thread_idents + i, NULL, buddy_thread_function, (void*) i);
     }
-    buddy_thread_count = how_many_threads;
 }
 
 void shut_down_multi_buddy(void) {
+    assert(has_been_initalized);
+
     shut_down_buddy_workers = True;
     // wake the workers
     pthread_barrier_wait(&work_barrier);
@@ -163,6 +198,8 @@ void shut_down_multi_buddy(void) {
 
 
 void run_function_on_array_with_buddies(void *array, s64 item_size, s64 count, Buddy_Work_Function func) {
+    assert(has_been_initalized);
+
     work_array = array;
     work_item_size = item_size;
     work_count = count;
@@ -170,6 +207,25 @@ void run_function_on_array_with_buddies(void *array, s64 item_size, s64 count, B
 
     // set to zero.
     atomic_counter = 0;
+
+    // TODO #if this.
+/*
+    // distribute work evenly.
+    s64 work_amounts[NUM_MAX_BUDDY_THREADS];
+    for (s64 i = 0; i < buddy_thread_count; i++) {
+        work_amounts[i] = work_count / buddy_thread_count;
+        // the leftover work.
+        if (i < work_count % buddy_thread_count) work_amounts[i] += 1;
+    }
+
+    { // test the distribution.
+        s64 total = 0;
+        for (s64 i = 0; i < buddy_thread_count; i++) total += work_amounts[i];
+        // printf("Total: %ld, work_count: %ld\n", total, work_count);
+        assert(total == work_count);
+    }
+*/
+
 
     // start all the threads.
     pthread_barrier_wait(&work_barrier);

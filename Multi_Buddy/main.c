@@ -71,6 +71,9 @@ double elapsed_time_in_secs(time_unit start, time_unit finish) {
     return elapsed;
 }
 
+#define NUM_BASE 1000000
+#define NUM_BUSY_LOOPS 10000
+
 int main(void) {
     printf("\n"IS_UNITY_STRING"\n");
 
@@ -78,7 +81,9 @@ int main(void) {
 
     init_multi_buddy();
 
-    s64 number_count = ((1<<20) + (random()%10));
+    // so the compiler cant get fancy on us
+    s64 number_count = NUM_BASE + (random()%10);
+    s64 busy_loop_count = NUM_BUSY_LOOPS + (random()%10);
 
     int *numbers1 = malloc(number_count * sizeof(int));
     int *numbers2 = malloc(number_count * sizeof(int));
@@ -91,15 +96,13 @@ int main(void) {
         numbers2[i] = random_number;
     }
 
-    #define NUM_BUSY_LOOPS 10000
-
     double single_thread_time;
     double multi_buddy_time;
 
     { // standard single threaded
         printf("Running single threaded\n");
         time_unit start = get_time();
-        for (size_t j = 0; j < NUM_BUSY_LOOPS; j++) {
+        for (s64 j = 0; j < busy_loop_count; j++) {
             for (s64 i = 0; i < number_count; i++) {
                 mutate_number(numbers1 + i);
             }
@@ -108,11 +111,11 @@ int main(void) {
 
         single_thread_time = elapsed_time_in_secs(start, end);
     }
-    
+
     { // with multi buddy
         printf("Running multi threaded\n");
         time_unit start = get_time();
-        for (size_t j = 0; j < NUM_BUSY_LOOPS; j++) {
+        for (s64 j = 0; j < busy_loop_count; j++) {
             run_function_on_array_with_buddies(numbers2, sizeof(int), number_count, mutate_number);
         }
         time_unit end = get_time();
