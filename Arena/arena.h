@@ -109,7 +109,7 @@ void Arena_free(Arena *a);
             __typeof__((da)->capacity) old_cap = (da)->capacity*sizeof(*(da)->items);                                              \
             (da)->capacity = (da)->capacity == 0 ? ARENA_DA_INIT_CAP : (da)->capacity*2;                                           \
             (da)->items = (__typeof__((da)->items)) Arena_realloc((a), (da)->items, old_cap, (da)->capacity*sizeof(*(da)->items)); \
-            assert((da)->items != NULL && "Buy More RAM lol");                                                                     \
+            ARENA_ASSERT((da)->items != NULL && "Buy More RAM lol");                                                               \
         }                                                                                                                          \
                                                                                                                                    \
         (da)->items[(da)->count++] = (item);                                                                                       \
@@ -183,14 +183,14 @@ void Arena_initialize_first_page(Arena *a, s64 first_page_size_in_bytes) {
         // get boundary_aligned_type number of bytes
         s64 size = (first_page_size_in_bytes + sizeof(boundary_aligned_type) - 1) / sizeof(boundary_aligned_type);
         // allocate a new region with size.
-        a->first = new_region(first_page_size_in_bytes);
+        a->first = new_region(size);
         a->last = a->first;
     }
 }
 
 
 void *Arena_alloc(Arena *a, s64 bytes) {
-    // round up the the nearest ptr size
+    // round up the the nearest boundary aligned size
     // sizeof(boundary_aligned_type) is a power of 2, so hopefully this "/" doesn't actually exist, and is just a right shift
     s64 size = (bytes + sizeof(boundary_aligned_type) - 1) / sizeof(boundary_aligned_type);
 
@@ -198,7 +198,7 @@ void *Arena_alloc(Arena *a, s64 bytes) {
     //     <0 is an error,
     //     0 is the macro 'ARENA_REGION_DEFAULT_CAPACITY',
     //     and >0 is your own custom size.
-    assert(a->minimum_allocation_size >= 0 && "minimum allocation size must be greater than or equal to zero");
+    ARENA_ASSERT(a->minimum_allocation_size >= 0 && "minimum allocation size must be greater than or equal to zero");
     s64 default_size = (a->minimum_allocation_size == 0) ? ARENA_REGION_DEFAULT_CAPACITY : a->minimum_allocation_size;
 
     s64 to_alloc_if_no_room = (size > default_size) ? size : default_size;
