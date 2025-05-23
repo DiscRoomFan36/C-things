@@ -53,10 +53,10 @@
 #endif // STRING_BUILDER_IMPLEMENTATION
 
 
-// if you dont want a dependency on STDLIB, define this.
-// NOTE. functions like SB_printf relies on stdlib.h
-#ifndef SB_NO_STDLIB
-#define STRING_BUILDER_USE_STDLIB_
+// if you dont want a dependency on stdio.h, define this.
+// NOTE. functions like SB_printf relies on stdio.h
+#ifndef SB_NO_STDIO
+#define STRING_BUILDER_USE_STDIO_
 #endif
 
 
@@ -135,10 +135,10 @@ void SB_add_SV(String_Builder *sb, SV sv);
 
 
 // functions that use the C standard library,
-// Define NO_STDLIB to remove this dependency.
-#ifdef STRING_BUILDER_USE_STDLIB_
+// Define NO_STDIO to remove this dependency.
+#ifdef STRING_BUILDER_USE_STDIO_
 
-#include <stdlib.h> // for FILE, and printf's (i dont want to make my own right now.)
+#include <stdio.h> // for FILE, and printf's (i dont want to make my own right now.)
 
 // Appends the string buffer to a file.
 //
@@ -149,7 +149,7 @@ void SB_to_file(String_Builder *sb, FILE *file);
 // printf into the string builder
 s64 SB_printf(String_Builder *sb, const char *format, ...) __attribute__ ((format (printf, 2, 3)));
 
-#endif // STRING_BUILDER_USE_STDLIB_
+#endif // STRING_BUILDER_USE_STDIO_
 
 
 #endif // STRING_BUILDER_H_
@@ -517,9 +517,9 @@ void SB_add_SV(String_Builder *sb, SV sv) {
 }
 
 
-#ifdef STRING_BUILDER_USE_STDLIB_
+#ifdef STRING_BUILDER_USE_STDIO_
 
-// stdlib is already in the header
+// stdio is already in the header
 #include <stdarg.h> // for va_arg's in printf like functions
 
 
@@ -594,7 +594,7 @@ s64 SB_printf(String_Builder *sb, const char *format, ...) {
     return formatted_size;
 }
 
-#endif // STRING_BUILDER_USE_STDLIB_
+#endif // STRING_BUILDER_USE_STDIO_
 
 
 
