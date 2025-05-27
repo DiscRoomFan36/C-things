@@ -422,27 +422,28 @@ void SB_free(String_Builder *sb) {
         return;
     }
 
-    // @Copypasta This loop over all segments is a little gnarly. maybe a helper macro would not go astray...
-    s64 buffer_index = sb->buffer_index;
-    Segment *current_segment = &sb->first_segment_holder;
-    // get the stuff in the full segments.
-    while (buffer_index > NUM_BUFFERS) {
-        for (s64 i = 0; i < NUM_BUFFERS; i++) {
+    { // @Copypasta This loop over all segments is a little gnarly. maybe a helper macro would not go astray...
+        s64 buffer_index = sb->buffer_index;
+        Segment *current_segment = &sb->first_segment_holder;
+        // get the stuff in the full segments.
+        while (buffer_index > NUM_BUFFERS) {
+            for (s64 i = 0; i < NUM_BUFFERS; i++) {
+                Character_Buffer *buffer = &current_segment->buffers[i];
+                free_buffer(buffer);
+            }
+            buffer_index -= NUM_BUFFERS;
+            current_segment = current_segment->next;
+
+            if (!current_segment) {
+                STRING_BUILDER_PANIC("SB_free: something internal went wrong.");
+                return;
+            }
+        }
+        // finish off the non full segment
+        for (s64 i = 0; i <= buffer_index; i++) {
             Character_Buffer *buffer = &current_segment->buffers[i];
             free_buffer(buffer);
         }
-        buffer_index -= NUM_BUFFERS;
-        current_segment = current_segment->next;
-
-        if (!current_segment) {
-            STRING_BUILDER_PANIC("SB_free: something internal went wrong.");
-            return;
-        }
-    }
-    // finish off the non full segment
-    for (s64 i = 0; i <= buffer_index; i++) {
-        Character_Buffer *buffer = &current_segment->buffers[i];
-        free_buffer(buffer);
     }
 
     { // free the segment pointers
