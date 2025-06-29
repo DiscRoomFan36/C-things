@@ -20,4 +20,4 @@ multi_buddy.o: multi_buddy.h
 
 
 clean:
-	rm main *.o
+	rm -rf main main_unity *.o
