@@ -26,15 +26,23 @@ typedef struct SV_Array {
 } SV_Array;
 
 
+// You can define your own malloc and free.
+#ifndef SV_MALLOC
+    #include <stdlib.h>
+    #define SV_MALLOC(size)    malloc(size)
+    #define SV_FREE(ptr)       free(ptr)
+#endif
+
+
 // functions on String views
 
 // takes a C_Str return a SV, dose not allocate
 SV SV_from_C_Str(const char *str);
-// duplicate a String View, uses malloc.
-// SV.data could be null if malloc fails, (but size will also be 0 so its good?)
+// duplicate a String View, uses SV_MALLOC.
+// SV.data could be null if SV_MALLOC fails, (but size will also be 0 so its good?)
 SV SV_dup(SV s);
 
-// free the pointer with 'free' and sets data to NULL
+// free the pointer with 'SV_FREE' and sets data to NULL
 void SV_free(SV *s);
 
 // transforms a SV in place to uppercase
@@ -49,15 +57,17 @@ bool32 SV_contains_char(SV s, char c);
 // finds the first occurrence of c in s, -1 on failure
 s64 SV_find_index_of_char(SV s, char c);
 // finds the first occurrence of needle in s, -1 on failure
-// needle must have size > 0
+// if needle.size == 0, returns -1.
 s64 SV_find_index_of(SV s, SV needle);
 
 // finds the line at index, and returns a SV of the line, strips, '\n'
 SV SV_get_single_line(SV s, s64 index);
 
-// advance the data, subtract the size, in place
+// advance the data, subtract the size, in place.
+// dose not check for null, or do any bounds checking. thats on you.
 void SV_advance(SV *s, s64 count);
-// advance the data, subtract the size, returns a new copy
+// advance the data, subtract the size, returns a new copy.
+// dose not check for null, or do any bounds checking. thats on you.
 SV SV_advanced(SV s, s64 count);
 
 typedef bool32 (*char_to_bool)(char);
@@ -78,13 +88,6 @@ SV SV_chop_while(SV s, char_to_bool test_char_function);
 #define STRING_VIEW_IMPLEMENTATION_GUARD_
 
 
-// only assert in extreme cases.
-#include <assert.h>
-
-// TODO accept an allocator? or make SV_USE_MALLOC, or use MALLOC define?
-// for 'malloc'
-#include <stdlib.h>
-
 
 u64 SV_strlen(const char *str) {
     if (!str) return 0;
@@ -104,7 +107,7 @@ SV SV_from_C_Str(const char *str) {
 
 SV SV_dup(SV s) {
     SV result;
-    result.data = malloc(s.size);
+    result.data = SV_MALLOC(s.size);
     if (result.data) {
         result.size = s.size;
 
@@ -119,7 +122,7 @@ SV SV_dup(SV s) {
 
 
 void SV_free(SV *s) {
-    if (s->data) { free(s->data); }
+    if (s->data) { SV_FREE(s->data); }
     s->data = NULL;
     s->size = 0;
 }
@@ -168,7 +171,7 @@ s64 SV_find_index_of_char(SV s, char c) {
 }
 
 s64 SV_find_index_of(SV s, SV needle) {
-    assert(needle.size > 0);
+    if (needle.size == 0) return -1;
 
     // easy out
     if (needle.size == 1) return SV_find_index_of_char(s, needle.data[0]);
