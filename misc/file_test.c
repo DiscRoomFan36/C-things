@@ -3,7 +3,7 @@
 
 int main(void) {
     String_Array files = {0};
-    get_all_files_in_directory("./mytb/", &files);
+    get_all_files_in_directory(".", &files);
 
     for (u64 i = 0; i < files.count; i++) {
         printf("%zu: %s\n", i, files.items[i]);
@@ -12,9 +12,8 @@ int main(void) {
     da_free_items(&files);
     da_free(&files);
 
-
-    SV entire_file = read_entire_file("./mytb/ints.h");
-    printf(SV_Fmt"\n", SV_Arg(entire_file));
+    File_Result entire_file = read_entire_file("./ints.h");
+    printf("%.*s\n", (int) entire_file.size, (char*) entire_file.data);
     free(entire_file.data);
 
     return 0;

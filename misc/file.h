@@ -16,7 +16,6 @@
 #include <assert.h>
 
 #include "ints.h"
-#include "String_View.h"
 #include "dynamic_array.h"
 
 
@@ -99,27 +98,33 @@ void get_all_dirs_in_directory(char *directory, String_Array *array) {
 }
 
 
+
+typedef struct {
+    void *data;
+    // number of bytes
+    long long size;
+} File_Result;
+
 // TODO use String_View
-SV read_entire_file(char *filename) {
+File_Result read_entire_file(char *filename) {
     FILE *file = fopen(filename, "rb");
-    SV result = {0};
+    File_Result result = {0};
 
-    if (!file) {
-        printf("ERROR when opening the file: %s\n", strerror(errno));
-        return result;
+    if (file) {
+        fseek(file, 0, SEEK_END);
+        result.size = ftell(file);
+        fseek(file, 0, SEEK_SET);
+
+        if (result.size >= 0) {
+            result.data = malloc(result.size);
+            if (result.data) {
+                size_t read_bytes = fread(result.data, 1, result.size, file);
+                assert(read_bytes == (size_t) result.size);
+            }
+        }
+
+        fclose(file);
     }
-
-    fseek(file, 0, SEEK_END);
-    result.size = ftell(file);
-    fseek(file, 0, SEEK_SET);
-
-    result.data = malloc(result.size * sizeof(char));
-    assert(result.data != NULL);
-
-    u64 read_bytes = fread(result.data, sizeof(char), result.size, file);
-    assert(read_bytes == (u64) result.size);
-
-    if (fclose(file)) {} // error, we dont care
 
     return result;
 }
