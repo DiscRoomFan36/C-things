@@ -17,7 +17,7 @@
 #define STRING_VIEW_IMPLEMENTATION
 #include "String_View.h"
 
-int main(int argc, char const **argv) {
+int main(void) {
 
     SV my_string = SV_from_C_Str("Hello, World");
     printf("my_string: "SV_Fmt"\n", SV_Arg(my_string));
