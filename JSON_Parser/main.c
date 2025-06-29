@@ -3,6 +3,9 @@
 #include <stdlib.h>
 #include <assert.h>
 
+// for memset
+#include <string.h>
+
 #include "ints.h"
 #define STRING_VIEW_IMPLEMENTATION
 #include "String_View.h"
