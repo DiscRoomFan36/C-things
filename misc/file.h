@@ -13,9 +13,11 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 
 #include "ints.h"
 #include "String_View.h"
+#include "dynamic_array.h"
 
 
 typedef struct String_Array {
@@ -115,7 +117,7 @@ SV read_entire_file(char *filename) {
     assert(result.data != NULL);
 
     u64 read_bytes = fread(result.data, sizeof(char), result.size, file);
-    assert(read_bytes == result.size);
+    assert(read_bytes == (u64) result.size);
 
     if (fclose(file)) {} // error, we dont care
 

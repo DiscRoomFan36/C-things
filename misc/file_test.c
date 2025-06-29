@@ -1,5 +1,5 @@
 
-#include "../mytb/file.h"
+#include "file.h"
 
 int main(void) {
     String_Array files = {0};
