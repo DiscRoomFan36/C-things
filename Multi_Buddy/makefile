@@ -3,7 +3,7 @@ CC = clang
 CFLAGS = -Wall -Wextra -pedantic -Werror -ggdb -std=gnu11
 CFLAGS += -O2
 
-all: main main_unity
+all: clean main main_unity
 
 main_unity: main.c multi_buddy.h
 	$(CC) $(CFLAGS) -lpthread -lm -o main_unity main.c

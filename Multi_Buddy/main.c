@@ -72,7 +72,7 @@ double elapsed_time_in_secs(time_unit start, time_unit finish) {
 }
 
 #define NUM_BASE 1000000
-#define NUM_BUSY_LOOPS 10000
+#define NUM_BUSY_LOOPS 1000
 
 int main(void) {
     printf("\n"IS_UNITY_STRING"\n");
