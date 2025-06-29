@@ -1,7 +1,7 @@
 //
 // String_View.h - better strings
 //
-// Fletcher M - 09/04/2025
+// Fletcher M - 30/06/2025
 //
 
 
@@ -30,7 +30,8 @@ typedef struct SV_Array {
 
 // takes a C_Str return a SV, dose not allocate
 SV SV_from_C_Str(const char *str);
-// duplicate a String View, uses malloc
+// duplicate a String View, uses malloc.
+// SV.data could be null if malloc fails, (but size will also be 0 so its good?)
 SV SV_dup(SV s);
 
 // free the pointer with 'free' and sets data to NULL
@@ -41,41 +42,41 @@ void SV_To_Upper(SV *s);
 
 // SV equality check
 bool32 SV_Eq(SV s1, SV s2);
-// SV starts with prefix
 bool32 SV_starts_with(SV s, SV prefix);
-// SV has char, no unicode support. yet?
-bool32 SV_contains_char(SV s, char c);
+bool32 SV_starts_with_c_str(SV s, const char *prefix);
 
+bool32 SV_contains_char(SV s, char c);
 // finds the first occurrence of c in s, -1 on failure
-s64 find_index_of_char(SV s, char c);
+s64 SV_find_index_of_char(SV s, char c);
 // finds the first occurrence of needle in s, -1 on failure
 // needle must have size > 0
-s64 find_index_of(SV s, SV needle);
+s64 SV_find_index_of(SV s, SV needle);
 
 // finds the line at index, and returns a SV of the line, strips, '\n'
-SV get_single_line(SV s, s64 index);
+SV SV_get_single_line(SV s, s64 index);
 
 // advance the data, subtract the size, in place
 void SV_advance(SV *s, s64 count);
 // advance the data, subtract the size, returns a new copy
 SV SV_advanced(SV s, s64 count);
 
+typedef bool32 (*char_to_bool)(char);
+// returns True if c is one of the ASCII whitespace characters.
+bool32 SV_is_space(char c);
+// returns a SV with the front chopped off, according to the test function.
+// use SV_is_space to chop the whitespace off of the front.
+SV SV_chop_while(SV s, char_to_bool test_char_function);
+
+
 // TODO more functions
 
 #endif // STRING_VIEW_H_
-
 
 #ifdef STRING_VIEW_IMPLEMENTATION
 
 #ifndef STRING_VIEW_IMPLEMENTATION_GUARD_
 #define STRING_VIEW_IMPLEMENTATION_GUARD_
 
-
-// TODO remove? make own functions?
-#include <string.h>
-// Needed for toupper
-// TODO remove
-#include <ctype.h>
 
 // only assert in extreme cases.
 #include <assert.h>
@@ -85,10 +86,18 @@ SV SV_advanced(SV s, s64 count);
 #include <stdlib.h>
 
 
+u64 SV_strlen(const char *str) {
+    if (!str) return 0;
+    for (u64 i = 0;; i++) {
+        if (str[i] == 0) return i;
+    }
+}
+
+
 SV SV_from_C_Str(const char *str) {
     SV result = {
         .data = (char *) str,
-        .size = strlen(str),
+        .size = SV_strlen(str),
     };
     return result;
 }
@@ -96,11 +105,13 @@ SV SV_from_C_Str(const char *str) {
 SV SV_dup(SV s) {
     SV result;
     result.data = malloc(s.size);
-    result.size = s.size;
+    if (result.data) {
+        result.size = s.size;
 
-    // TODO sv copy?
-    for (s64 i = 0; i < s.size; i++) {
-        result.data[i] = s.data[i];
+        // TODO sv copy?
+        for (s64 i = 0; i < s.size; i++) {
+            result.data[i] = s.data[i];
+        }
     }
 
     return result;
@@ -116,7 +127,9 @@ void SV_free(SV *s) {
 
 void SV_To_Upper(SV *s) {
     for (s64 n = 0; n < s->size; n++) {
-        s->data[n] = toupper(s->data[n]);
+        if ('a' <= s->data[n] && s->data[n] <= 'z') {
+            s->data[n] += 'A' - 'a';
+        }
     }
 }
 
@@ -137,30 +150,31 @@ bool32 SV_starts_with(SV s, SV prefix) {
     return True;
 }
 
-bool32 SV_contains_char(SV s, char c) {
-    for (s64 i = 0; i < s.size; i++) {
-        if (s.data[i] == c) return True;
-    }
-    return False;
+bool32 SV_starts_with_c_str(SV s, const char *prefix) {
+    return SV_starts_with(s, SV_from_C_Str(prefix));
 }
 
 
+bool32 SV_contains_char(SV s, char c) {
+    return SV_find_index_of_char(s, c) != -1;
+}
+
 // TODO: simd? or dose that happen automagically?
-s64 find_index_of_char(SV s, char c) {
+s64 SV_find_index_of_char(SV s, char c) {
     for (s64 i = 0; i < s.size; i++) {
         if (s.data[i] == c) return i;
     }
     return -1;
 }
 
-s64 find_index_of(SV s, SV needle) {
+s64 SV_find_index_of(SV s, SV needle) {
     assert(needle.size > 0);
 
     // easy out
-    if (needle.size == 1) return find_index_of_char(s, needle.data[0]);
+    if (needle.size == 1) return SV_find_index_of_char(s, needle.data[0]);
 
     while (True) {
-        s64 index = find_index_of_char(s, needle.data[0]);
+        s64 index = SV_find_index_of_char(s, needle.data[0]);
         if (index == -1) return -1;
 
         // check if not enough room for needle
@@ -184,10 +198,13 @@ s64 find_index_of(SV s, SV needle) {
 }
 
 
-SV get_single_line(SV s, s64 i) {
+SV SV_get_single_line(SV s, s64 i) {
+    // clamp i if its to big. this handles a lot more errors than your thinking about.
+    if (i > s.size) i = s.size;
+
     SV result = {.data = s.data + i, .size = s.size - i};
 
-    s64 index = find_index_of_char(result, '\n');
+    s64 index = SV_find_index_of_char(result, '\n');
 
     // clamp the length to the far newline
     if (index != -1) { result.size = index; }
@@ -209,8 +226,30 @@ void SV_advance(SV *s, s64 count) {
 }
 
 SV SV_advanced(SV s, s64 count) {
-    return (SV){.data = s.data + count, .size = s.size -= count};
+    return (SV){.data = s.data + count, .size = s.size - count};
 }
+
+
+bool32 SV_is_space(char c) {
+    if (c == ' ')  return True;
+    if (c == '\f') return True;
+    if (c == '\n') return True;
+    if (c == '\r') return True;
+    if (c == '\t') return True;
+    if (c == '\v') return True;
+    return False;
+}
+
+SV SV_chop_while(SV s, char_to_bool test_char_function) {
+    s64 i;
+    for (i = 0; i < s.size; i++) {
+        if (!test_char_function(s.data[i])) break;
+    }
+    s.data += i;
+    s.size -= i;
+    return s;
+}
+
 
 
 #endif // STRING_VIEW_IMPLEMENTATION_GUARD_
