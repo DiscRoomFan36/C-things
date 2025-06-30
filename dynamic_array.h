@@ -10,6 +10,7 @@
 
 #include <assert.h>
 
+
 // You can redefine realloc and free.
 // take care when useing these if you have multiple compilation units.
 #ifndef DA_REALLOC
