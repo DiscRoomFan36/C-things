@@ -121,6 +121,10 @@ void Arena_free(Arena *a);
 
 #ifdef ARENA_IMPLEMENTATION
 
+#ifndef ARENA_IMPLEMENTATION_GUARD
+#define ARENA_IMPLEMENTATION_GUARD
+
+
 // For 'malloc' and 'free'.
 // We should remove this and use something like
 //
@@ -288,5 +292,7 @@ void Arena_free(Arena *a) {
     a->last  = NULL;
 }
 
+
+#endif // ARENA_IMPLEMENTATION_GUARD
 
 #endif // ARENA_IMPLEMENTATION
