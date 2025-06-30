@@ -34,11 +34,17 @@ typedef struct SV_Array {
 #endif
 
 
+// works the same as strlen,
+// returns 0 on null ptr
+u64 SV_strlen(const char *str);
+// works the same as memset.
+void *SV_memset(void *dest, u8 to_set, s64 n);
+
 // functions on String views
 
 // takes a C_Str return a SV, dose not allocate
 SV SV_from_C_Str(const char *str);
-// duplicate a String View, uses SV_MALLOC.
+// duplicate a String View, uses SV_MALLOC, dose not zero terminate the string.
 // SV.data could be null if SV_MALLOC fails, (but size will also be 0 so its good?)
 SV SV_dup(SV s);
 
@@ -82,6 +88,7 @@ SV SV_chop_while(SV s, char_to_bool test_char_function);
 
 #endif // STRING_VIEW_H_
 
+
 #ifdef STRING_VIEW_IMPLEMENTATION
 
 #ifndef STRING_VIEW_IMPLEMENTATION_GUARD_
@@ -94,6 +101,12 @@ u64 SV_strlen(const char *str) {
     for (u64 i = 0;; i++) {
         if (str[i] == 0) return i;
     }
+}
+
+void *SV_memset(void *dest, u8 to_set, s64 n) {
+    u8 *d = dest;
+    for (s64 i = 0; i < n; i++) d[i] = to_set;
+    return (u8*) dest + n;
 }
 
 
