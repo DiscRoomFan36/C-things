@@ -1,1 +1,1 @@
-/home/fletcher/Programming/C things/dynamic_array.h
+../dynamic_array.h
