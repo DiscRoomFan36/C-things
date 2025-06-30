@@ -1,6 +1,6 @@
 
 CC = clang
-CFLAGS = -Wall -Wextra -ggdb -pedantic -Werror
+CFLAGS = -Wall -Wextra -ggdb -pedantic -Werror -Wmissing-prototypes #-Weverything
 # CFLAGS += -O2
 
 run: clean main
