@@ -105,7 +105,6 @@ typedef struct {
     long long size;
 } File_Result;
 
-// TODO use String_View
 File_Result read_entire_file(char *filename) {
     FILE *file = fopen(filename, "rb");
     File_Result result = {0};
