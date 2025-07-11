@@ -1,7 +1,9 @@
 //
 // String_View.h - better strings
 //
-// Fletcher M - 30/06/2025
+// Created By - Fletcher M
+//
+// Last Modified - 11/07/2025
 //
 
 
@@ -15,15 +17,17 @@ typedef struct SV {
     char *data;
 } SV;
 
-#define SV_Fmt "%.*s"
-#define SV_Arg(sv) (int) (sv).size, (sv).data 
-// Example: printf("my_sv = "SV_Fmt"\n", SV_Arg(my_sv));
 
 typedef struct SV_Array {
     SV *items;
-    u64 count;
-    u64 capacity;
+    s64 count;
+    s64 capacity;
 } SV_Array;
+
+
+#define SV_Fmt "%.*s"
+#define SV_Arg(sv) (int) (sv).size, (sv).data 
+// Example: printf("my_sv = "SV_Fmt"\n", SV_Arg(my_sv));
 
 
 // You can define your own malloc and free.
