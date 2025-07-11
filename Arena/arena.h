@@ -20,21 +20,22 @@
 
 
 #ifndef ARENA_ASSERT
-#include <assert.h>
-#define ARENA_ASSERT assert
+    #include <assert.h>
+    #define ARENA_ASSERT assert
 #endif
 
 #ifndef ARENA_REGION_DEFAULT_CAPACITY
-#define ARENA_REGION_DEFAULT_CAPACITY (8*1024)
+    #define ARENA_REGION_DEFAULT_CAPACITY (8*1024)
 #endif // ARENA_REGION_DEFAULT_CAPACITY
 
 
-// When you return a chunk of memory to the user, its important that the data is aligned to a register / pointer boundary.
-// This means that when the user goes to read or write their ints or something, they dont have to do a stupid read across
-// registers / memory locations, to ge a single number. If you just did the most 'efficient' thing and alloc
-// just the right amount of data and return the next section, you could not be aligned with a register boundary,
-// and thus it would take a different kind of read by the CPU to get the memory to you, and to send it back down.
-// This size should be something friendly to the CPU, (thats why we don't just use char or u8 here.)
+// When you return a chunk of memory to the user, its important that the data is aligned to a
+// register / pointer boundary. This means that when the user goes to read or write their ints
+// or something, they dont have to do a stupid read across registers / memory locations, to ge a single number.
+// If you just did the most 'efficient' thing and alloc just the right amount of data and return the next section,
+// you could not be aligned with a register boundary, and thus it would take a different kind of read by the CPU
+// to get the memory to you, and to send it back down. This size should be something friendly to the CPU,
+// (thats why we don't just use char or u8 here.)
 //
 // I use a 64-bit number here, (not just whatever the 'int' type is), so its easily known and mostly future proof.
 // If you need 128-bit aligned pointers, just modify this file, or just only use the aligned parts,
@@ -42,14 +43,18 @@
 typedef u64   boundary_aligned_type;
 
 
-typedef struct Region Region;
-
-struct Region {
-    Region *next;
+typedef struct Region {
+    struct Region *next;
     s64 count;
     s64 capacity;
+
+    // used in Arena_free()
+    bool32 do_not_free_this;
+    // extra padding bytes.
+    u8 padding[4];
+
     boundary_aligned_type data[];
-};
+} Region;
 
 typedef struct Arena {
     Region *first, *last;
@@ -59,6 +64,24 @@ typedef struct Arena {
     //  > 0: is how much to allocate, in number of boundary_aligned_type's,
     //  < 0: is gonna assert, cuz you probably didn't set this bit of memory correctly.
     s64 minimum_allocation_size;
+
+    // TODO the following flags should be put into an enum flag.
+
+    // If this is set to True, (anything thats not zero),
+    // when performing allocating functions, (such as Arena_alloc),
+    // it may instead return null when trying to allocate memory for a new Region,
+    // instead of calling its panic function, (by default panic is just assert(false))
+    //
+    // You may want this if you want your programs to be bullet proof,
+    // to not panic at the first sign of trouble.
+    bool32 dont_panic_when_allocation_failure;
+
+    // If this is set to True, if it runs out of memory in its current Region, it will panic.
+    // Note. Arena_initialize_first_page() will still trigger this function.
+    //
+    // Uou may want this if you want more control over when your program allocates,
+    // and want your program to have a fixed amount of memory usage.
+    bool32 panic_when_trying_to_allocate_new_page;
 } Arena;
 
 
@@ -71,6 +94,15 @@ typedef struct Arena {
 //
 // 'first_page_size_in_bytes' will be rounded up to the nearest 'boundary_aligned_type'
 void Arena_initialize_first_page(Arena *a, s64 first_page_size_in_bytes);
+
+// Sets the last Region (or the first Region if the arena is not yet initalized),
+// to the provided buffer.
+//
+// This is useful if you dont want the arena to allocate at all, just provide a large buffer,
+// and set the 'panic_when_trying_to_allocate_new_page' flag, and now this arena will never allocate.
+//
+// Care has been taken, so that when Arena_free is called, the pointer to the buffer provided here will not be free'd.
+void Arena_add_buffer_as_storeage_space(Arena *a, void *buffer, s64 buffer_size_in_bytes);
 
 // alloc some memory for use in an arena, uninitialized
 void *Arena_alloc(Arena *a, s64 bytes);
@@ -93,13 +125,13 @@ void Arena_free(Arena *a);
 
 
 #ifndef ARENA_DA_INIT_CAP
-// if there was already something set, use it.
-# ifdef DA_INIT_CAP
-#  define ARENA_DA_INIT_CAP DA_INIT_CAP
-# else
-// else just use the default
-#  define ARENA_DA_INIT_CAP 32
-# endif
+    // if there was already something set, use it.
+    #ifdef DA_INIT_CAP
+        #define ARENA_DA_INIT_CAP DA_INIT_CAP
+    #else
+        // else just use the default
+        #define ARENA_DA_INIT_CAP 32
+    #endif
 #endif
 
 
@@ -157,39 +189,90 @@ local void *arena_memset(void *dest, u8 c, s64 n) {
 }
 
 
-// Guarantees a new Region, (Because it asserts)
+// makes a new Region, may return null.
 // Uses malloc.
 local Region *new_region(s64 capacity) {
     // Region uses come of the end thing.
     Region *new_region = malloc(sizeof(Region) + sizeof(boundary_aligned_type)*capacity);
-    ARENA_ASSERT(new_region && "new region could not get allocated, you may have run out of memory.");
 
-    new_region->next     = NULL;
-    new_region->count    = 0;
-    new_region->capacity = capacity;
+    if (new_region) {
+        new_region->next     = NULL;
+        new_region->count    = 0;
+        new_region->capacity = capacity;
+        // this should be free'd because it's been malloc'd
+        new_region->do_not_free_this = False;
+    }
 
     return new_region;
 }
 // Uses free.
 local void free_region(Region *r) {
-    free(r);
+    if (!r->do_not_free_this) {
+        free(r);
+    }
 }
 
 
 void Arena_initialize_first_page(Arena *a, s64 first_page_size_in_bytes) {
     if (a->first != NULL) return;
 
-    if (first_page_size_in_bytes == 0) {
-        // just let arena alloc take care of it.
-        Arena_alloc(a, 0);
-    } else {
+    // just a funny hack.
+    s64 tmp_min_alloc_size = a->minimum_allocation_size;
+    a->minimum_allocation_size = first_page_size_in_bytes;
 
-        // get boundary_aligned_type number of bytes
-        s64 size = (first_page_size_in_bytes + sizeof(boundary_aligned_type) - 1) / sizeof(boundary_aligned_type);
-        // allocate a new region with size.
-        a->first = new_region(size);
-        a->last = a->first;
+    Arena_alloc(a, 0);
+
+    a->minimum_allocation_size = tmp_min_alloc_size;
+
+    // if (first_page_size_in_bytes == 0) {
+    //     // just let arena alloc take care of it.
+    //     Arena_alloc(a, 0);
+    // } else {
+
+    //     // get boundary_aligned_type number of bytes
+    //     s64 size = (first_page_size_in_bytes + sizeof(boundary_aligned_type) - 1) / sizeof(boundary_aligned_type);
+    //     // allocate a new region with size.
+    //     a->first = new_region(size);
+    //     a->last = a->first;
+    // }
+}
+
+
+void Arena_add_buffer_as_storeage_space(Arena *a, void *buffer, s64 buffer_size_in_bytes) {
+    ARENA_ASSERT(buffer != NULL && "why did you pass this to us.");
+    ARENA_ASSERT(buffer_size_in_bytes >= 0 && "must have positive buffer size");
+
+    ARENA_ASSERT((u64) buffer_size_in_bytes > sizeof(Region) && "The passed in buffer must be big enough to contain the Region, preferably much bigger");
+
+    s64 real_allocatable_space = buffer_size_in_bytes - sizeof(Region);
+
+    // this is rounded down so we dont overrun the buffer.
+    s64 size_in_boundary_aligned = real_allocatable_space / sizeof(boundary_aligned_type);
+
+    Region *new_region = buffer;
+    new_region->count = 0;
+    new_region->capacity = size_in_boundary_aligned;
+    new_region->next = NULL;
+
+    // the user will free this (or its some static memory)
+    new_region->do_not_free_this = True;
+
+    // check if this is the only memory in the arena.
+    if (a->last == NULL) {
+        ARENA_ASSERT(a->first == NULL);
+
+        a->first = new_region;
+        a->last  = new_region;
+
+        return;
     }
+
+    // find the last Region.
+    Region *p;
+    for (p = a->last; p->next != NULL; p = p->next);
+
+    // set new last.
+    p->next = new_region;
 }
 
 
@@ -207,10 +290,19 @@ void *Arena_alloc(Arena *a, s64 bytes) {
 
     s64 to_alloc_if_no_room = (size > default_size) ? size : default_size;
 
+    // aka there is no memory yet.
     if (a->last == NULL) {
         ARENA_ASSERT(a->first == NULL);
 
+        if (a->panic_when_trying_to_allocate_new_page) {
+            ARENA_ASSERT(False && "Arena_alloc: attempted to allocate new memory, but that has been disallowed. (when there was no memory to begin with.)");
+        }
+
         a->first = new_region(to_alloc_if_no_room);
+        if (a->first == NULL) {
+            if (a->dont_panic_when_allocation_failure) return NULL;
+            ARENA_ASSERT(a->first && "Arena_alloc: attempted to allocate new memory, got null. (when there was no memory to begin with.)");
+        }
         a->last = a->first;
 
         a->last->count = size;
@@ -231,9 +323,17 @@ void *Arena_alloc(Arena *a, s64 bytes) {
         // else we need a new region
         ARENA_ASSERT(a->last->next == NULL);
 
+        if (a->panic_when_trying_to_allocate_new_page) {
+            ARENA_ASSERT(False && "Arena_alloc: attempted to allocate new memory, but that has been disallowed.");
+        }
+
         Region *last_last = a->last;
 
         a->last = new_region(to_alloc_if_no_room);
+        if (a->last == NULL) {
+            if (a->dont_panic_when_allocation_failure) return NULL;
+            ARENA_ASSERT(a->last && "Arena_alloc: attempted to allocate new memory, got null.");
+        }
         a->last->count = size;
 
         last_last->next = a->last;
