@@ -25,32 +25,29 @@
 
 
 // Implementation defines you might be interested in.
-#ifdef STRING_BUILDER_IMPLEMENTATION
 
-    // how much to alloc by default when a new segment of memory is needed.
-    #ifndef BUFFER_DEFAULT_SIZE
-    // 4096 bytes is equal to the default page size in windows and linux.
-    #define BUFFER_DEFAULT_SIZE 4096
-    #endif
+// how much to alloc by default when a new segment of memory is needed.
+#ifndef STRING_BUILDER_BUFFER_DEFAULT_SIZE
+    // 4096 bytes is equal to the default page size in windows and linux. probably.
+    #define STRING_BUILDER_BUFFER_DEFAULT_SIZE 4096
+#endif
 
-    // if you want to define your own 'malloc' and 'free'
-    #ifndef STRING_BUILDER_MALLOC
+// if you want to define your own 'malloc' and 'free'
+#ifndef STRING_BUILDER_MALLOC
     #include <stdlib.h>
     #define STRING_BUILDER_MALLOC(size) malloc(size)
     #define STRING_BUILDER_FREE(ptr)    free(ptr)
-    #endif
+#endif
 
-    // This macro is called when something goes wrong. Recommended to just use assert.
-    // But in some cases assert can be compiled out, if this happens, the program will still sortof function.
-    //
-    // If the macro dose nothing, (or doesn't exist,) the results of some operations will return NULL/base values.
-    // or do no work at all. use at your own risk.
-    #ifndef STRING_BUILDER_PANIC
+// This macro is called when something goes wrong. Recommended to just use assert.
+// But in some cases assert can be compiled out, if this happens, the program will still sortof function.
+//
+// If the macro dose nothing, (or doesn't exist,) the results of some operations will return NULL/base values.
+// or do no work at all. use at your own risk.
+#ifndef STRING_BUILDER_PANIC
     #include <assert.h>
     #define STRING_BUILDER_PANIC(error_text) assert(False && error_text)
-    #endif
-
-#endif // STRING_BUILDER_IMPLEMENTATION
+#endif
 
 
 // if you dont want a dependency on stdio.h, define this.
@@ -245,7 +242,7 @@ local Character_Buffer *maybe_expand_to_fit(String_Builder *sb, s64 size) {
         }
 
         // if base_new_allocation is not zero, use it, else use default macro.
-        s64 default_size = (sb->base_new_allocation > 0) ? sb->base_new_allocation : BUFFER_DEFAULT_SIZE;
+        s64 default_size = (sb->base_new_allocation > 0) ? sb->base_new_allocation : STRING_BUILDER_BUFFER_DEFAULT_SIZE;
         s64 to_add_size = (size < default_size) ? default_size : size;
 
         last_buffer->data = STRING_BUILDER_MALLOC(to_add_size);
