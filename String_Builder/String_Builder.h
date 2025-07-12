@@ -4,7 +4,7 @@
 // By Fletcher M.
 //
 // Created  : 21/05/2025
-// Modified : 21/05/2025
+// Modified : 12/07/2025
 //
 
 #ifndef STRING_BUILDER_H_
@@ -18,10 +18,10 @@
 
 
 // How many segments in a single Segment Structure.
-// This Should be a power of 2 for speed. (see maybe_expand_to_fit: sb->buffer_index % NUM_BUFFERS == 0)
+// This Should be a power of 2 for speed. (see maybe_expand_to_fit: sb->buffer_index % STRING_BUILDER_NUM_BUFFERS == 0)
 //
 // (Not putting this one in an ifndef, if you want to change this, change this.)
-#define NUM_BUFFERS 32
+#define STRING_BUILDER_NUM_BUFFERS 32
 
 
 // Implementation defines you might be interested in.
@@ -81,7 +81,7 @@ typedef struct Segment {
     struct Segment *next;
 
     // all the buffers that hold the parts of a string.
-    Character_Buffer buffers[NUM_BUFFERS];
+    Character_Buffer buffers[STRING_BUILDER_NUM_BUFFERS];
 } Segment;
 
 
@@ -206,7 +206,7 @@ local Character_Buffer *maybe_expand_to_fit(String_Builder *sb, s64 size) {
     if (sb->current_segment == NULL) sb->current_segment = &sb->first_segment_holder;
 
     // now, check all the segments to see if they have space,
-    Character_Buffer *last_buffer = &sb->current_segment->buffers[sb->buffer_index % NUM_BUFFERS];
+    Character_Buffer *last_buffer = &sb->current_segment->buffers[sb->buffer_index % STRING_BUILDER_NUM_BUFFERS];
     while (True) {
         // if the segment hasn't been allocated
         if (last_buffer->count == 0) break;
@@ -217,7 +217,7 @@ local Character_Buffer *maybe_expand_to_fit(String_Builder *sb, s64 size) {
         // else move onto the next segment
         sb->buffer_index += 1;
 
-        if (sb->buffer_index % NUM_BUFFERS == 0) {
+        if (sb->buffer_index % STRING_BUILDER_NUM_BUFFERS == 0) {
             // we ran off the end. use linked list pointer
             if (!sb->current_segment->next) {
                 // we need to make a new segment holder
@@ -234,7 +234,7 @@ local Character_Buffer *maybe_expand_to_fit(String_Builder *sb, s64 size) {
             sb->current_segment = sb->current_segment->next;
         }
 
-        last_buffer = &sb->current_segment->buffers[sb->buffer_index % NUM_BUFFERS];
+        last_buffer = &sb->current_segment->buffers[sb->buffer_index % STRING_BUILDER_NUM_BUFFERS];
     }
 
 
@@ -280,12 +280,12 @@ s64 SB_count(String_Builder *sb) {
         s64 buffer_index = sb->buffer_index;
         Segment *current_segment = &sb->first_segment_holder;
         // get the stuff in the full segments.
-        while (buffer_index > NUM_BUFFERS) {
-            for (s64 i = 0; i < NUM_BUFFERS; i++) {
+        while (buffer_index > STRING_BUILDER_NUM_BUFFERS) {
+            for (s64 i = 0; i < STRING_BUILDER_NUM_BUFFERS; i++) {
                 Character_Buffer *buffer = &current_segment->buffers[i];
                 count += buffer->count;
             }
-            buffer_index -= NUM_BUFFERS;
+            buffer_index -= STRING_BUILDER_NUM_BUFFERS;
             current_segment = current_segment->next;
 
             if (!current_segment) {
@@ -313,7 +313,7 @@ s64 SB_capacity(String_Builder *sb) {
 
     Segment *current_segment = &sb->first_segment_holder;
     while (current_segment) {
-        for (size_t i = 0; i < NUM_BUFFERS; i++) {
+        for (size_t i = 0; i < STRING_BUILDER_NUM_BUFFERS; i++) {
             Character_Buffer *buffer = &current_segment->buffers[i];
             capacity += buffer->capacity;
         }
@@ -348,13 +348,13 @@ SV SB_to_SV(String_Builder *sb) {
         s64 buffer_index = sb->buffer_index;
         Segment *current_segment = &sb->first_segment_holder;
         // get the stuff in the full segments.
-        while (buffer_index > NUM_BUFFERS) {
-            for (s64 i = 0; i < NUM_BUFFERS; i++) {
+        while (buffer_index > STRING_BUILDER_NUM_BUFFERS) {
+            for (s64 i = 0; i < STRING_BUILDER_NUM_BUFFERS; i++) {
                 Character_Buffer *buffer = &current_segment->buffers[i];
                 SB_memcpy(result.data + index, buffer->data, buffer->count);
                 index += buffer->count;
             }
-            buffer_index -= NUM_BUFFERS;
+            buffer_index -= STRING_BUILDER_NUM_BUFFERS;
             current_segment = current_segment->next;
 
             if (!current_segment) {
@@ -393,12 +393,12 @@ void SB_reset(String_Builder *sb) {
     s64 buffer_index = sb->buffer_index;
     Segment *current_segment = &sb->first_segment_holder;
     // get the stuff in the full segments.
-    while (buffer_index > NUM_BUFFERS) {
-        for (s64 i = 0; i < NUM_BUFFERS; i++) {
+    while (buffer_index > STRING_BUILDER_NUM_BUFFERS) {
+        for (s64 i = 0; i < STRING_BUILDER_NUM_BUFFERS; i++) {
             Character_Buffer *buffer = &current_segment->buffers[i];
             buffer->count = 0;
         }
-        buffer_index -= NUM_BUFFERS;
+        buffer_index -= STRING_BUILDER_NUM_BUFFERS;
         current_segment = current_segment->next;
 
         if (!current_segment) {
@@ -426,12 +426,12 @@ void SB_free(String_Builder *sb) {
         s64 buffer_index = sb->buffer_index;
         Segment *current_segment = &sb->first_segment_holder;
         // get the stuff in the full segments.
-        while (buffer_index > NUM_BUFFERS) {
-            for (s64 i = 0; i < NUM_BUFFERS; i++) {
+        while (buffer_index > STRING_BUILDER_NUM_BUFFERS) {
+            for (s64 i = 0; i < STRING_BUILDER_NUM_BUFFERS; i++) {
                 Character_Buffer *buffer = &current_segment->buffers[i];
                 free_buffer(buffer);
             }
-            buffer_index -= NUM_BUFFERS;
+            buffer_index -= STRING_BUILDER_NUM_BUFFERS;
             current_segment = current_segment->next;
 
             if (!current_segment) {
@@ -538,12 +538,12 @@ void SB_to_file(String_Builder *sb, FILE *file) {
     s64 buffer_index = sb->buffer_index;
     Segment *current_segment = &sb->first_segment_holder;
     // get the stuff in the full segments.
-    while (buffer_index > NUM_BUFFERS) {
-        for (s64 i = 0; i < NUM_BUFFERS; i++) {
+    while (buffer_index > STRING_BUILDER_NUM_BUFFERS) {
+        for (s64 i = 0; i < STRING_BUILDER_NUM_BUFFERS; i++) {
             Character_Buffer *buffer = &current_segment->buffers[i];
             fwrite(buffer->data, sizeof(char), buffer->count, file);
         }
-        buffer_index -= NUM_BUFFERS;
+        buffer_index -= STRING_BUILDER_NUM_BUFFERS;
         current_segment = current_segment->next;
 
         if (!current_segment) {
