@@ -53,7 +53,7 @@
 // if you dont want a dependency on stdio.h, define this.
 // NOTE. functions like SB_printf relies on stdio.h
 #ifndef SB_NO_STDIO
-#define STRING_BUILDER_USE_STDIO_
+    #define STRING_BUILDER_USE_STDIO_
 #endif
 
 
