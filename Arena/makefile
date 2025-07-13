@@ -9,4 +9,4 @@ main: main.c arena.h
 	$(CC) $(CFLAGS) -o main main.c
 
 clean:
-	rm main
+	rm -f main
