@@ -2,8 +2,8 @@
 #include <stdio.h>
 
 #include "ints.h"
-#define STRING_VIEW_IMPLEMENTATION
-#include "String_View.h"
+#define STRING_HELPER_IMPLEMENTATION
+#include "String_Helper.h"
 #define ARENA_IMPLEMENTATION
 #include "arena.h"
 

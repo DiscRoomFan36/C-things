@@ -41,14 +41,8 @@ make clean >> /dev/null
 echo ""
 
 
-cd ../String_Builder
-make && ./main >> /dev/null
-make clean >> /dev/null
-echo ""
-
-
-cd ../String_View
-make && ./main >> /dev/null
+cd ../String_Helper
+make main && ./main >> /dev/null
 make clean >> /dev/null
 echo ""
 
