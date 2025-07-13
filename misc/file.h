@@ -105,7 +105,7 @@ typedef struct {
     long long size;
 } File_Result;
 
-File_Result read_entire_file(char *filename) {
+File_Result read_entire_file(const char *filename) {
     FILE *file = fopen(filename, "rb");
     File_Result result = {0};
 
