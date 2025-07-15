@@ -55,11 +55,11 @@
 // Example: printf("my_sv = "SV_Fmt"\n", SV_Arg(my_sv));
 
 
-// You can define your own malloc and free.
-#ifndef SV_MALLOC
+// if you want to define your own 'malloc' and 'free'
+#ifndef STRING_HELPER_MALLOC
     #include <stdlib.h>
-    #define SV_MALLOC(size)    malloc(size)
-    #define SV_FREE(ptr)       free(ptr)
+    #define STRING_HELPER_MALLOC(size)    malloc(size)
+    #define STRING_HELPER_FREE(ptr)       free(ptr)
 #endif
 
 
@@ -78,12 +78,6 @@
     #define STRING_BUILDER_BUFFER_DEFAULT_SIZE 4096
 #endif
 
-// if you want to define your own 'malloc' and 'free'
-#ifndef STRING_BUILDER_MALLOC
-    #include <stdlib.h>
-    #define STRING_BUILDER_MALLOC(size) malloc(size)
-    #define STRING_BUILDER_FREE(ptr)    free(ptr)
-#endif
 
 // This macro is called when something goes wrong. Recommended to just use assert.
 // But in some cases assert can be compiled out, if this happens, the program will still sortof function.
@@ -179,11 +173,11 @@ void *SV_memset(void *dest, u8 to_set, s64 n);
 
 // takes a C_Str return a SV, dose not allocate
 SV SV_from_C_Str(const char *str);
-// duplicate a String View, uses SV_MALLOC, dose not zero terminate the string.
-// SV.data could be null if SV_MALLOC fails, (but size will also be 0 so its good?)
+// duplicate a String View, uses STRING_HELPER_MALLOC, dose not zero terminate the string.
+// SV.data could be null if STRING_HELPER_MALLOC fails, (but size will also be 0 so its good?)
 SV SV_dup(SV s);
 
-// free the pointer with 'SV_FREE' and sets data to NULL
+// free the pointer with 'STRING_HELPER_FREE' and sets data to NULL
 void SV_free(SV *s);
 
 // transforms a SV in place to uppercase
@@ -310,7 +304,7 @@ SV SV_from_C_Str(const char *str) {
 
 SV SV_dup(SV s) {
     SV result;
-    result.data = SV_MALLOC(s.size);
+    result.data = STRING_HELPER_MALLOC(s.size);
     if (result.data) {
         result.size = s.size;
 
@@ -325,7 +319,7 @@ SV SV_dup(SV s) {
 
 
 void SV_free(SV *s) {
-    if (s->data) { SV_FREE(s->data); }
+    if (s->data) { STRING_HELPER_FREE(s->data); }
     s->data = NULL;
     s->size = 0;
 }
@@ -478,7 +472,7 @@ internal void SB_memset(void *dest, u8 to_set, s64 n) {
 
 internal void free_buffer(Character_Buffer *buffer) {
     if (buffer->data) {
-        STRING_BUILDER_FREE(buffer->data);
+        STRING_HELPER_FREE(buffer->data);
         buffer->data     = NULL;
         buffer->count    = 0;
         buffer->capacity = 0;
@@ -516,7 +510,7 @@ internal Character_Buffer *maybe_expand_to_fit(String_Builder *sb, s64 size) {
             if (!sb->current_segment->next) {
                 // we need to make a new segment holder
                 // make sure to init to 0
-                sb->current_segment->next = STRING_BUILDER_MALLOC(sizeof(Segment));
+                sb->current_segment->next = STRING_HELPER_MALLOC(sizeof(Segment));
 
                 if (!sb->current_segment->next) {
                     STRING_BUILDER_PANIC("String Builder - maybe_expand_to_fit: failed to malloc a new segment holder");
@@ -542,7 +536,7 @@ internal Character_Buffer *maybe_expand_to_fit(String_Builder *sb, s64 size) {
         s64 default_size = (sb->base_new_allocation > 0) ? sb->base_new_allocation : STRING_BUILDER_BUFFER_DEFAULT_SIZE;
         s64 to_add_size = (size < default_size) ? default_size : size;
 
-        last_buffer->data = STRING_BUILDER_MALLOC(to_add_size);
+        last_buffer->data = STRING_HELPER_MALLOC(to_add_size);
 
         if (!last_buffer->data) {
             STRING_BUILDER_PANIC("maybe_expand_to_fit: failed to malloc a new segment with to_add_size");
@@ -628,7 +622,7 @@ SV SB_to_SV(String_Builder *sb) {
 
     s64 new_string_size = SB_count(sb);
 
-    result.data = STRING_BUILDER_MALLOC(new_string_size+1); // +1 for null byte, (for c_string compatiblity)
+    result.data = STRING_HELPER_MALLOC(new_string_size+1); // +1 for null byte, (for c_string compatiblity)
     if (!result.data) {
         STRING_BUILDER_PANIC("SB_malloc failed when trying to allocate enough memory to hold to result string from SB_to_SV()");
         return result;
@@ -653,7 +647,7 @@ SV SB_to_SV(String_Builder *sb) {
 
             if (!current_segment) {
                 STRING_BUILDER_PANIC("SB_to_SV: something internal went wrong.");
-                STRING_BUILDER_FREE(result.data);
+                STRING_HELPER_FREE(result.data);
                 result.data = NULL;
                 result.size = 0;
                 return result;
@@ -744,7 +738,7 @@ void SB_free(String_Builder *sb) {
         Segment *current_segment = sb->first_segment_holder.next;
         while (current_segment) {
             Segment *tmp = current_segment->next;
-            STRING_BUILDER_FREE(current_segment);
+            STRING_HELPER_FREE(current_segment);
             current_segment = tmp;
         }
     }
