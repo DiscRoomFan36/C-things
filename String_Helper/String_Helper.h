@@ -866,6 +866,7 @@ s64 SB_printf(String_Builder *sb, const char *format, ...) {
     va_list args;
 
     va_start(args, format);
+        // TODO figure out how to do the thing we did in Arena.h for its sprintf
         s64 formatted_size = vsnprintf(NULL, 0, format, args);
     va_end(args);
 
