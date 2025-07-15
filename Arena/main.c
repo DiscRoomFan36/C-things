@@ -26,6 +26,12 @@ int main(void) {
         }
     }
 
+    const char *str1 = Arena_sprintf(&a, "look ma! %s\n", "im a printf!");
+    const char *str2 = Arena_sprintf(&a, "there are %d leaves in the pile.\n", 65902);
+
+    printf("%s", str1);
+    printf("%s", str2);
+
     Arena_free(&a);
     return 0;
 }

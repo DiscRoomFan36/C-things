@@ -150,6 +150,10 @@ void *Arena_calloc(Arena *a, s64 bytes);
 // (NOTE. This function acts like malloc if old_ptr is NULL, and old_size will be unused)
 void *Arena_realloc(Arena *a, void *old_ptr, s64 old_size, s64 new_size);
 
+// sprintf useing the arena as a buffer.
+const char *Arena_sprintf(Arena *a, const char *format, ...) __attribute__ ((format (printf, 2, 3)));
+
+
 // resets the arena, keeps the memory.
 void Arena_reset(Arena *a);
 // free the memory.
@@ -396,6 +400,49 @@ void *Arena_realloc(Arena *a, void *old_ptr, s64 old_size, s64 new_size) {
 
     return new_ptr;
 }
+
+
+// for var arg stuff.
+#include <stdarg.h>
+
+const char *Arena_sprintf(Arena *a, const char *format, ...) {
+    char *buf    = NULL;
+    s64 buf_size = 0;
+
+    if (a->last != NULL) {
+        buf      = (char*) (a->last->data + a->last->count);
+        // chars are smaller than im used to.
+        buf_size = (a->last->capacity - a->last->count) * sizeof(boundary_aligned_type);
+    }
+
+    va_list args;
+
+    va_start(args, format);
+        s64 formatted_size = vsnprintf(buf, buf_size, format, args);
+    va_end(args);
+
+    // i dont know if this should be <= or just <, hmm...
+    if (formatted_size < buf_size) {
+        // the string fits!
+        // advance the count.
+        a->last->count += (formatted_size + sizeof(boundary_aligned_type) - 1) / sizeof(boundary_aligned_type);
+        return buf;
+
+
+    } else {
+        // else we need to allocate some space.
+
+        buf      = Arena_alloc(a, formatted_size);
+        buf_size = formatted_size;
+
+        va_start(args, format);
+            vsnprintf(buf, buf_size, format, args);
+        va_end(args);
+
+        return buf;
+    }
+}
+
 
 
 void Arena_reset(Arena *a) {
