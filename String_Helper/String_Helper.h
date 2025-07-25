@@ -185,6 +185,7 @@ void SV_To_Upper(SV *s);
 
 // SV equality check
 bool32 SV_Eq(SV s1, SV s2);
+bool32 SV_Eq_c_str(SV s1, const char *s2);
 bool32 SV_starts_with(SV s, SV prefix);
 bool32 SV_starts_with_c_str(SV s, const char *prefix);
 
@@ -208,10 +209,19 @@ SV SV_advanced(SV s, s64 count);
 typedef bool32 (*char_to_bool)(char);
 // returns True if c is one of the ASCII whitespace characters.
 bool32 SV_is_space(char c);
+// remove ASCII whitespace characters from the right of the SV.
+SV SV_trim_right(SV s);
 // returns a SV with the front chopped off, according to the test function.
 // use SV_is_space to chop the whitespace off of the front.
 SV SV_chop_while(SV s, char_to_bool test_char_function);
 
+// gets the next line in parseing, and advances parseing and line_num to match
+// bool's toggle removeing comments that start with '#',
+// trimming the output (from the right), and skiping over empty lines.
+//
+// 'result == parseing' signifies the end of the file.
+// OR result.size == 0 if skip_empty is toggled.
+SV SV_get_next_line(SV *parseing, s64 *line_num, bool32 remove_comments, bool32 trim, bool32 skip_empty);
 
 // TODO more SV functions
 
@@ -246,6 +256,8 @@ void SB_add_pointer_and_size(String_Builder *sb, char *ptr, s64 size);
 void SB_add_C_str(String_Builder *sb, const char *c_str);
 // append a single String View, dose not check for NULL byte
 void SB_add_SV(String_Builder *sb, SV sv);
+// macro to easily add a struct into a String_builder.
+#define SB_add_struct(sb, struct_ptr) SB_add_pointer_and_size((sb), (void*) (struct_ptr), sizeof(*(struct_ptr)))
 
 
 // functions that use the C standard library,
@@ -340,6 +352,10 @@ bool32 SV_Eq(SV s1, SV s2) {
         if (s1.data[n] != s2.data[n]) return False;
     }
     return True;
+}
+
+bool32 SV_Eq_c_str(SV s1, const char *s2) {
+    return SV_Eq(s1, SV_from_C_Str(s2));
 }
 
 bool32 SV_starts_with(SV s, SV prefix) {
@@ -440,6 +456,13 @@ bool32 SV_is_space(char c) {
     return False;
 }
 
+SV SV_trim_right(SV s) {
+    while (s.size > 0 && SV_is_space(s.data[s.size-1])) {
+        s.size -= 1;
+    }
+    return s;
+}
+
 SV SV_chop_while(SV s, char_to_bool test_char_function) {
     s64 i;
     for (i = 0; i < s.size; i++) {
@@ -450,6 +473,41 @@ SV SV_chop_while(SV s, char_to_bool test_char_function) {
     return s;
 }
 
+
+SV SV_get_next_line(SV *parseing, s64 *line_num, bool32 remove_comments, bool32 trim, bool32 skip_empty) {
+    // this could inf loop if parseing.size is negative
+    assert(parseing->size >= 0);
+
+    SV next_line = *parseing;
+
+    while (parseing->size) {
+        s64 line_end = SV_find_index_of_char(*parseing, '\n');
+
+        next_line = *parseing;
+
+        if (line_end != -1) {
+            next_line.size = line_end;
+            SV_advance(parseing, line_end+1);
+        } else {
+            SV_advance(parseing, parseing->size);
+        }
+
+        *line_num += 1;
+
+        if (remove_comments) {
+            // remove comments
+            s64 comment_index = SV_find_index_of_char(next_line, '#');
+            if (comment_index != -1) { next_line.size = comment_index; }
+        }
+
+        if (trim) next_line = SV_trim_right(next_line);
+
+        // 'if your not skipping empty' OR 'if there is something on the line', return it.
+        if ((!skip_empty) || (next_line.size > 0)) break;
+    }
+
+    return next_line;
+}
 
 
 
@@ -466,7 +524,7 @@ internal s64 SB_strlen(const char *str) {
     return n;
 }
 internal void SB_memset(void *dest, u8 to_set, s64 n) {
-    char *d = dest;
+    u8 *d = dest;
     for (s64 i = 0; i < n; i++) d[i] = to_set;
 }
 
