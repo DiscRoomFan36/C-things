@@ -65,7 +65,7 @@
 
 // When you return a chunk of memory to the user, its important that the data is aligned to a
 // register / pointer boundary. This means that when the user goes to read or write their ints
-// or something, they dont have to do a stupid read across registers / memory locations, to ge a single number.
+// or something, they dont have to do a stupid read across registers / memory locations, to get a single number.
 // If you just did the most 'efficient' thing and alloc just the right amount of data and return the next section,
 // you could not be aligned with a register boundary, and thus it would take a different kind of read by the CPU
 // to get the memory to you, and to send it back down. This size should be something friendly to the CPU,
