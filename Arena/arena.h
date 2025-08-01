@@ -3,7 +3,7 @@
 //
 // DiscRoomFan
 // Created  - 03/03/2025
-// Modified - 15/07/2025
+// Modified - 01/08/2025
 //
 // This is originally inspired by:
 // - https://github.com/tsoding/arena
@@ -58,7 +58,8 @@
 #endif
 
 #ifndef ARENA_REGION_DEFAULT_CAPACITY
-    #define ARENA_REGION_DEFAULT_CAPACITY (8*1024)
+    // By default allocate 32 Kilobytes
+    #define ARENA_REGION_DEFAULT_CAPACITY (32*1028)
 #endif // ARENA_REGION_DEFAULT_CAPACITY
 
 
@@ -335,12 +336,12 @@ void *Arena_alloc(Arena *a, s64 bytes) {
             ARENA_ASSERT(False && "Arena_alloc: attempted to allocate new memory, but that has been disallowed. (when there was no memory to begin with.)");
         }
 
-        a->first = new_region(to_alloc_if_no_room);
-        if (a->first == NULL) {
+        a->last = new_region(to_alloc_if_no_room);
+        if (a->last == NULL) {
             if (a->dont_panic_when_allocation_failure) return NULL;
-            ARENA_ASSERT(a->first && "Arena_alloc: attempted to allocate new memory, got null. (when there was no memory to begin with.)");
+            ARENA_ASSERT(a->last && "Arena_alloc: attempted to allocate new memory, got null. (when there was no memory to begin with.)");
         }
-        a->last = a->first;
+        a->first = a->last;
 
         a->last->count = size;
         return a->last->data;
