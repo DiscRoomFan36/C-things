@@ -238,7 +238,6 @@ internal Token parser_internal_get_next_token(Parser *p) {
 
     // TODO parse numbers?
 
-    // TODO parse string
     if (next_char == '"') {
         SV thing = {.data = p->parseing.data + 1, .size = p->parseing.size - 1};
 
@@ -247,6 +246,7 @@ internal Token parser_internal_get_next_token(Parser *p) {
 
             if (index == -1) {
                 // TODO return a TK_ERROR
+                assert(False);
             }
 
             // TODO make a note about how we dont detect the newline in this string.
@@ -269,6 +269,7 @@ internal Token parser_internal_get_next_token(Parser *p) {
         };
         return result;
     }
+
 
     result.kind = (Token_Kind) next_char;
     result.text = (SV){.data = p->parseing.data, .size = 1};
