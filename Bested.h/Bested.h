@@ -70,8 +70,8 @@ typedef double          f64;
 #define Typeof(x) __typeof__(x)
 
 
-#define Min(a, b) ({ Typeof(a) _a = (a); Typeof(b) _b = (b); (_a < _b) ? _a : _b; })
-#define Max(a, b) ({ Typeof(a) _a = (a); Typeof(b) _b = (b); (_a > _b) ? _a : _b; })
+#define Min(a, b) ({ Typeof(a) _a = (a); Typeof(b) _b = (b); _a < _b ? _a : _b; })
+#define Max(a, b) ({ Typeof(a) _a = (a); Typeof(b) _b = (b); _a > _b ? _a : _b; })
 
 #define Is_Between(x, lower, upper) (((lower) <= (x)) && ((x) <= (upper)))
 
