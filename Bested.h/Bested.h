@@ -1,20 +1,14 @@
 //
-// Bested.h
+// Bested.h - Best Standard.h
 //
+// Author   - Fletcher M
 //
+// Created  - 04/08/25
+// Modified - 04/08/25
 //
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
+// Make sure to...
+//      #define BESTED_IMPLEMENTATION
+// somewhere in your project
 
 #ifndef BESTED_H
 #define BESTED_H
