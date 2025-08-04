@@ -1,6 +1,6 @@
 
-#ifndef MY_STANDARD_H
-#define MY_STANDARD_H
+#ifndef BESTED_H
+#define BESTED_H
 
 
 // ===================================================
@@ -15,7 +15,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include <assert.h> // mainly for static_assert
+#include <assert.h> // mainly for static_assert, i define my own ASSERT
 
 #include <stdalign.h> // for 'alignof'
 
@@ -604,18 +604,18 @@ void *_Map_Put                          (Arena *arena, Map_Header *header, void 
 
 
 
-#endif // MY_STANDARD_H
+#endif // BESTED_H
 
 
-#ifdef MY_STANDARD_IMPLEMENTATION
+#ifdef BESTED_IMPLEMENTATION
 
 
 #include <string.h>
 #include <stdarg.h>
 
 
-#define MY_STANDARD_MALLOC(size)    malloc(size)
-#define MY_STANDARD_FREE(ptr)       free(ptr)
+#define BESTED_MALLOC(size)    malloc(size)
+#define BESTED_FREE(ptr)       free(ptr)
 
 
 // ===================================================
@@ -676,7 +676,7 @@ s32 Mem_Cmp (void *ptr1, void *ptr2, u64 count) {
 // ===================================================
 
 internal Region *Arena_Internal_New_Region(u64 capacity_in_bytes) {
-    Region *new_region = MY_STANDARD_MALLOC(sizeof(Region) + capacity_in_bytes);
+    Region *new_region = BESTED_MALLOC(sizeof(Region) + capacity_in_bytes);
     if (new_region) {
         new_region->next                = NULL;
         new_region->count_in_bytes      = 0;
@@ -687,7 +687,7 @@ internal Region *Arena_Internal_New_Region(u64 capacity_in_bytes) {
 }
 
 internal void Arena_Internal_Free_Region(Region *region) {
-    if (!region->do_not_free_this) MY_STANDARD_FREE(region);
+    if (!region->do_not_free_this) BESTED_FREE(region);
 }
 
 // inline because there is really nothing in this function.
@@ -883,7 +883,7 @@ Arena *Pool_Get(Arena_Pool *pool) {
         }
 
         if (!pool->next_pool) {
-            pool->next_pool = MY_STANDARD_MALLOC(sizeof(Arena_Pool));
+            pool->next_pool = BESTED_MALLOC(sizeof(Arena_Pool));
             Mem_Zero(pool->next_pool, sizeof(Arena_Pool));
         }
         pool = pool->next_pool;
@@ -929,7 +929,7 @@ void Pool_Free_Arenas(Arena_Pool *pool) {
     pool = original_pool->next_pool;
     while (pool) {
         Arena_Pool *next_pool = pool->next_pool;
-        MY_STANDARD_FREE(pool);
+        BESTED_FREE(pool);
         pool = next_pool;
     }
 }
@@ -1455,5 +1455,5 @@ void *_Map_Put(Arena *arena, Map_Header *header, void *kv_array, void *key, u64 
 
 
 
-#endif // MY_STANDARD_IMPLEMENTATION
+#endif // BESTED_IMPLEMENTATION
 

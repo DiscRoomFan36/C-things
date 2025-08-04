@@ -1,6 +1,6 @@
 
-#define MY_STANDARD_IMPLEMENTATION
-#include "../my_standard.h"
+#define BESTED_IMPLEMENTATION
+#include "../bested.h"
 
 int main(void) {
     Arena arena = {0};
