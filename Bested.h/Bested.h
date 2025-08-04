@@ -268,9 +268,10 @@ typedef struct Arena {
 
 void *_Arena_Alloc(Arena *arena, u64 size_in_bytes, u64 alignment, b32 clear_to_zero);
 // Clear to zero by default
-#define Arena_Alloc(arena, size)                _Arena_Alloc((arena), (size), Default_Alignment, true)
-#define Arena_Alloc_Struct(arena, type)         (type *)_Arena_Alloc((arena),           sizeof(type), alignof(type),    true)
-#define Arena_Alloc_Array(arena, count, type)   (type *)_Arena_Alloc((arena), (count) * sizeof(type), alignof(type), true)
+#define Arena_Alloc(arena, size)                            _Arena_Alloc((arena), (size), Default_Alignment, true)
+#define Arena_Alloc_Clear(arena, size, clear_to_zero)       _Arena_Alloc((arena), (size), Default_Alignment, (clear_to_zero))
+#define Arena_Alloc_Struct(arena, type)                     (type *)_Arena_Alloc((arena),           sizeof(type), alignof(type),    true)
+#define Arena_Alloc_Array(arena, count, type)               (type *)_Arena_Alloc((arena), (count) * sizeof(type), alignof(type), true)
 
 
 // Will do nothing if the first page is already created.
@@ -333,6 +334,8 @@ typedef struct { char *data; u64 length; } String;
 
 String  String_From_C_Str(const char *str);
 #define S(c_str)    String_From_C_Str(c_str)
+
+const char *String_To_C_Str(Arena *arena, String s);
 
 String  String_Duplicate(Arena *arena, String s, b32 null_terminate);
 // duplicate a String, dose not zero terminate the string.
@@ -613,6 +616,39 @@ void *_Map_Put                          (Arena *arena, Map_Header *header, void 
 
 
 
+// ===================================================
+//             Some Common Functions
+// ===================================================
+
+String Read_Entire_File(Arena *arena, String filename);
+String Read_Entire_File(Arena *arena, String filename) {
+    // TODO revert arena after doing this.
+    const char *filename_c_str = String_To_C_Str(arena, filename);
+    FILE *file = fopen(filename_c_str, "rb");
+    String result = {0};
+
+    if (file) {
+        fseek(file, 0, SEEK_END);
+        s64 length = ftell(file);
+        fseek(file, 0, SEEK_SET);
+
+        if (length >= 0) {
+            result.length = (u64)length;
+            result.data = Arena_Alloc_Clear(arena, result.length+1, false);
+            if (result.data) {
+                u64 read_bytes = fread(result.data, 1, result.length, file);
+                ASSERT(read_bytes == result.length);
+                result.data[result.length] = 0; // zero terminate for the love of the game.
+            }
+        }
+
+        fclose(file);
+    }
+
+    return result;
+}
+
+
 
 
 #endif // BESTED_H
@@ -777,7 +813,7 @@ void Arena_Initialize_First_Page(Arena *arena, u64 first_page_size_in_bytes) {
     u64 tmp_min_alloc_size = arena->minimum_allocation_size;
     arena->minimum_allocation_size = first_page_size_in_bytes;
 
-    _Arena_Alloc(arena, 0, 1, false);
+    Arena_Alloc_Clear(arena, 0, false);
 
     arena->minimum_allocation_size = tmp_min_alloc_size;
 }
@@ -838,7 +874,7 @@ const char *Arena_sprintf(Arena *arena, const char *format, ...) {
     } else {
         // else we need to allocate some space.
 
-        buf      = _Arena_Alloc(arena, (u64)formatted_size+1, alignof(char), false);
+        buf      = Arena_Alloc_Clear(arena, (u64)formatted_size+1, false);
         buf_size = (u64)formatted_size+1;
 
         va_start(args, format);
@@ -969,6 +1005,10 @@ String String_From_C_Str(const char *str) {
     };
     return result;
 }
+const char *String_To_C_Str(Arena *arena, String s) {
+    return String_Duplicate(arena, s, true).data;
+}
+
 
 String String_Duplicate(Arena *arena, String s, b32 null_terminate) {
     String result = {
@@ -1271,7 +1311,7 @@ String String_Builder_To_String(Arena *arena, String_Builder *sb) {
     u64 count = String_Builder_Count(sb);
 
     String result = {
-        .data = _Arena_Alloc(arena, count+1, Default_Alignment, false),
+        .data = Arena_Alloc_Clear(arena, count+1, false),
         .length = count,
     };
     if (!result.data) {
@@ -1461,6 +1501,39 @@ void *_Map_Put(Arena *arena, Map_Header *header, void *kv_array, void *key, u64 
     }
 
     return kv_array;
+}
+
+
+
+// ===================================================
+//             Some Common Functions
+// ===================================================
+
+String Read_Entire_File(Arena *arena, String filename) {
+    // TODO revert arena after doing this.
+    const char *filename_c_str = String_To_C_Str(arena, filename);
+    FILE *file = fopen(filename_c_str, "rb");
+    String result = {0};
+
+    if (file) {
+        fseek(file, 0, SEEK_END);
+        s64 length = ftell(file);
+        fseek(file, 0, SEEK_SET);
+
+        if (length >= 0) {
+            result.length = (u64)length;
+            result.data = Arena_Alloc_Clear(arena, result.length+1, false);
+            if (result.data) {
+                u64 read_bytes = fread(result.data, 1, result.length, file);
+                ASSERT(read_bytes == result.length);
+                result.data[result.length] = 0; // zero terminate for the love of the game.
+            }
+        }
+
+        fclose(file);
+    }
+
+    return result;
 }
 
 
