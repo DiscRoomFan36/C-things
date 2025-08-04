@@ -123,7 +123,7 @@ typedef double          f64;
 #define Micro_From_Seconds(value)       Millions(value)
 
 #define Milli_From_Microseconds(value)  ((value) / 1000LL)
-#define Sec_From_Microseconds           ((value) / 1000000LL)
+#define Sec_From_Microseconds(value)    ((value) / 1000000LL)
 
 
 
