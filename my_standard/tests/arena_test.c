@@ -7,14 +7,14 @@ int main(void) {
 
     int *seven_ints = Arena_Alloc_Array(&a, 7, int);
 
-    for (size_t i = 0; i < 7; i++) {
+    for (int i = 0; i < 7; i++) {
         seven_ints[i] = i*i;
     }
-    for (size_t i = 0; i < 7; i++) {
-        printf("%zu: %d\n", i, seven_ints[i]);
+    for (int i = 0; i < 7; i++) {
+        printf("%d: %d\n", i, seven_ints[i]);
     }
 
-    for (size_t i = 0; i < 1000000; i++) {
+    for (int i = 0; i < 1000000; i++) {
         int *leak = Arena_Alloc_Struct(&a, int);
         *leak = 69;
 

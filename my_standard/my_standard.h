@@ -385,7 +385,7 @@ static_assert(Is_Pow_2(STRING_BUILDER_NUM_BUFFERS), "For Speed");
 // how much to alloc by default when a new segment of memory is needed.
 #ifndef STRING_BUILDER_BUFFER_DEFAULT_SIZE
     // 4096 bytes is equal to the default page size in windows and linux. probably.
-    #define STRING_BUILDER_BUFFER_DEFAULT_SIZE      Kilobytes(4);
+    #define STRING_BUILDER_BUFFER_DEFAULT_SIZE      Kilobytes(4)
 #endif
 
 // This macro is called when something goes wrong. Recommended to just use assert.
@@ -607,7 +607,6 @@ void *_Map_Put                          (Arena *arena, Map_Header *header, void 
 #endif // MY_STANDARD_H
 
 
-#define MY_STANDARD_IMPLEMENTATION
 #ifdef MY_STANDARD_IMPLEMENTATION
 
 
@@ -696,10 +695,11 @@ internal void Arena_Internal_Free_Region(Region *region) {
 internal inline void *Arena_Internal_Get_New_Memory_At_Last_Region(Arena *arena, u64 size_in_bytes, u64 alignment, b32 clear_to_zero) {
     u64 aligned_ptr_u64 = Mem_Align_Forward(Ptr_To_U64(arena->last->data + arena->last->count_in_bytes), alignment);
     s64 how_far_forward = Mem_Ptr_Diff(U64_To_Ptr(aligned_ptr_u64), arena->last->data + arena->last->count_in_bytes);
+    ASSERT(how_far_forward >= 0);
 
     if (clear_to_zero) Mem_Zero(U64_To_Ptr(aligned_ptr_u64), size_in_bytes);
 
-    arena->last->count_in_bytes += size_in_bytes + how_far_forward;
+    arena->last->count_in_bytes += size_in_bytes + (u64) how_far_forward;
     return U64_To_Ptr(aligned_ptr_u64);
 }
 
@@ -820,15 +820,15 @@ const char *Arena_sprintf(Arena *arena, const char *format, ...) {
     if ((u64)formatted_size < buf_size) {
         // the string fits!
         // advance the count. +1 because we need the null terminator for this one.
-        arena->last->count_in_bytes += formatted_size + 1;
+        arena->last->count_in_bytes += (u64)formatted_size+1;
         return buf;
 
 
     } else {
         // else we need to allocate some space.
 
-        buf      = _Arena_Alloc(arena, formatted_size + 1, alignof(char), false);
-        buf_size = formatted_size + 1;
+        buf      = _Arena_Alloc(arena, (u64)formatted_size+1, alignof(char), false);
+        buf_size = (u64)formatted_size+1;
 
         va_start(args, format);
             vsnprintf(buf, buf_size, format, args);
@@ -1076,7 +1076,7 @@ String String_Chop_While(String s, char_to_bool_func test_char_function) {
     for (i = 0; i < s.length; i++) {
         if (!test_char_function(s.data[i])) break;
     }
-    return String_Advanced(s, i);
+    return String_Advanced(s, (s64)i);
 }
 
 String String_Get_Next_Line(String *parseing, u64 *line_num, String_Get_Next_Line_Flag flags) {
@@ -1092,17 +1092,17 @@ String String_Get_Next_Line(String *parseing, u64 *line_num, String_Get_Next_Lin
         next_line = *parseing;
 
         if (line_end != -1) {
-            next_line.length = line_end;
+            next_line.length = (u64)line_end;
             String_Advance(parseing, line_end+1);
         } else {
-            String_Advance(parseing, parseing->length);
+            String_Advance(parseing, (s64)parseing->length);
         }
 
         *line_num += 1;
 
         if (remove_comments) {
             s64 comment_index = String_Find_Index_Of_Char(next_line, '#');
-            if (comment_index != -1) { next_line.length = comment_index; }
+            if (comment_index != -1) { next_line.length = (u64)comment_index; }
         }
 
         if (trim) next_line = String_Trim_Right(next_line);
@@ -1233,15 +1233,18 @@ u64 String_Builder_printf(Arena *arena, String_Builder *sb, const char *format, 
     va_list args;
     va_start(args, format);
         // TODO figure out how to do the thing we did in Arena.h for its sprintf
-        s64 formatted_size = vsnprintf(NULL, 0, format, args);
+        s32 formatted_size = vsnprintf(NULL, 0, format, args);
     va_end(args);
+
+    // < 0 is an error from printf
+    ASSERT(formatted_size >= 0);
 
     // early out.
     if (formatted_size == 0) return 0;
 
     // +1 because printf also puts a trailing '\0' byte.
     // we ignore that for the rest of the code.
-    Character_Buffer *buffer = String_Builder_Internal_Maybe_Expand_To_Fit(arena, sb, formatted_size+1);
+    Character_Buffer *buffer = String_Builder_Internal_Maybe_Expand_To_Fit(arena, sb, (u64)formatted_size+1);
 
     if (!buffer) return 0; // maybe_expand_to_fit has already raised the panic.
 
@@ -1249,8 +1252,8 @@ u64 String_Builder_printf(Arena *arena, String_Builder *sb, const char *format, 
         vsprintf(buffer->data + buffer->count, format, args);
     va_end(args);
 
-    buffer->count += formatted_size;
-    return formatted_size;
+    buffer->count += (u64)formatted_size;
+    return (u64)formatted_size;
 }
 
 String String_Builder_To_String(Arena *arena, String_Builder *sb) {
@@ -1344,7 +1347,7 @@ s64 _Map_maybe_get_index_of_key(Map_Hash_Entry *table, u64 table_size, void *kv_
 
         // check the hashes for speed, then check the actual keys
         if ((entry.hash != HASH_DEAD) && (entry.hash == hash) && Mem_Eq(key, entry_key, key_size)) {
-            return pos;
+            return (s64) pos;
         }
 
         pos = (pos + incr) % table_size;
@@ -1352,7 +1355,7 @@ s64 _Map_maybe_get_index_of_key(Map_Hash_Entry *table, u64 table_size, void *kv_
         ASSERT(incr < 512); // what are the odds for 512 hash collisions in a row?
     }
 
-    return pos;
+    return (s64) pos;
 }
 
 s64 _Map_get_index_of_key_in_table(Map_Hash_Entry *table, u64 table_size, void *kv_array, u64 hash, void *key, u64 key_size, u64 kv_pair_size) {
@@ -1370,7 +1373,7 @@ s64 _Map_get_index_of_key_in_items(Map_Hash_Entry *table, u64 table_size, void *
 
     if (index_in_table == -1) return -1;
 
-    return table[index_in_table].index;
+    return (s64) table[index_in_table].index;
 }
 
 void *_Map_get_pointer_to_pair_in_items(Map_Hash_Entry *table, u64 table_size, void *kv_array, u64 hash, void *key, u64 key_size, u64 kv_pair_size) {
@@ -1378,7 +1381,7 @@ void *_Map_get_pointer_to_pair_in_items(Map_Hash_Entry *table, u64 table_size, v
 
     if (index_in_items == -1) return NULL;
 
-    return ((u8*)kv_array) + (index_in_items * kv_pair_size);
+    return ((u8*)kv_array) + ((u64)index_in_items * kv_pair_size);
 }
 
 void *_Map_Grow(Arena *arena, Map_Header *header, void *kv_array, u64 key_size, u64 kv_pair_size, u64 count) {
@@ -1406,7 +1409,8 @@ void *_Map_Grow(Arena *arena, Map_Header *header, void *kv_array, u64 key_size, 
 
             if (entry.hash == HASH_UNALLOCATED || entry.hash == HASH_DEAD) continue;
 
-            u64 new_table_index = _Map_maybe_get_index_of_key(new_table, new_table_size, kv_array, entry.hash, entry_key, key_size, kv_pair_size);
+            s64 new_table_index = _Map_maybe_get_index_of_key(new_table, new_table_size, kv_array, entry.hash, entry_key, key_size, kv_pair_size);
+            ASSERT(new_table_index >= 0);
 
             ASSERT(new_table[new_table_index].hash == HASH_UNALLOCATED);
             new_table[new_table_index] = entry;

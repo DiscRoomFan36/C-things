@@ -1,10 +1,12 @@
 
 CC = clang
-CFLAGS = -Wall -Wextra -ggdb -Werror #-pedantic
+CFLAGS  = -std=gnu11
+CFLAGS += -Wall -Wextra -ggdb -Werror
+CFLAGS += -pedantic -Wno-gnu-statement-expression
 # CFLAGS += -O2
 # CFLAGS += -Weverything -ferror-limit=0 -Wno-declaration-after-statement -Wno-unsafe-buffer-usage
 
-run: clear clean arena_test pool_test string_builder_test array_test hashmap_test
+run: clean arena_test pool_test string_builder_test array_test hashmap_test
 	valgrind ./build/arena_test
 	valgrind ./build/pool_test
 	./build/string_builder_test
@@ -32,6 +34,3 @@ build:
 
 clean:
 	rm -rf ./build/
-
-clear:
-	clear
