@@ -66,15 +66,17 @@ typedef double          f64;
 //                    Nice Macros
 // ===================================================
 
+// I always forget how to call typeof()
 #define Typeof(x) __typeof__(x)
 
 
-#define Min(a, b) ((a) < (b) ? (a) : (b))
-#define Max(a, b) ((a) > (b) ? (a) : (b))
+#define Min(a, b) ({ Typeof(a) _a = (a); Typeof(b) _b = (b); (_a < _b) ? _a : _b; })
+#define Max(a, b) ({ Typeof(a) _a = (a); Typeof(b) _b = (b); (_a > _b) ? _a : _b; })
 
 #define Is_Between(x, lower, upper) (((lower) <= (x)) && ((x) <= (upper)))
 
 #define Array_Len(array)            (sizeof(array) / sizeof((array)[0]))
+
 // zero is not a power of 2
 #define Is_Pow_2(n)                 (((n) != 0) && (((n) & ((n)-1)) == 0))
 
@@ -265,6 +267,11 @@ typedef struct Arena {
     b32 panic_when_trying_to_allocate_new_page;
 } Arena;
 
+// used for marking and then rewinding an arena.
+typedef struct Arena_Mark {
+    Region *last;
+    u64 count;
+} Arena_Mark;
 
 void *_Arena_Alloc(Arena *arena, u64 size_in_bytes, u64 alignment, b32 clear_to_zero);
 // Clear to zero by default
@@ -273,6 +280,10 @@ void *_Arena_Alloc(Arena *arena, u64 size_in_bytes, u64 alignment, b32 clear_to_
 #define Arena_Alloc_Struct(arena, type)                     (type *)_Arena_Alloc((arena),           sizeof(type), alignof(type),    true)
 #define Arena_Alloc_Array(arena, count, type)               (type *)_Arena_Alloc((arena), (count) * sizeof(type), alignof(type), true)
 
+// get an arena's current position, to rewind it later.
+Arena_Mark Arena_Get_Mark(Arena *arena);
+// if the mark is not from this arena, your going to have a bad time.
+void Arena_Set_To_Mark(Arena *arena, Arena_Mark mark);
 
 // Will do nothing if the first page is already created.
 //
@@ -621,37 +632,14 @@ void *_Map_Put                          (Arena *arena, Map_Header *header, void 
 // ===================================================
 
 String Read_Entire_File(Arena *arena, String filename);
-String Read_Entire_File(Arena *arena, String filename) {
-    // TODO revert arena after doing this.
-    const char *filename_c_str = String_To_C_Str(arena, filename);
-    FILE *file = fopen(filename_c_str, "rb");
-    String result = {0};
-
-    if (file) {
-        fseek(file, 0, SEEK_END);
-        s64 length = ftell(file);
-        fseek(file, 0, SEEK_SET);
-
-        if (length >= 0) {
-            result.length = (u64)length;
-            result.data = Arena_Alloc_Clear(arena, result.length+1, false);
-            if (result.data) {
-                u64 read_bytes = fread(result.data, 1, result.length, file);
-                ASSERT(read_bytes == result.length);
-                result.data[result.length] = 0; // zero terminate for the love of the game.
-            }
-        }
-
-        fclose(file);
-    }
-
-    return result;
-}
 
 
 
 
 #endif // BESTED_H
+
+
+
 
 
 #ifdef BESTED_IMPLEMENTATION
@@ -780,6 +768,11 @@ void *_Arena_Alloc(Arena *arena, u64 size_in_bytes, u64 alignment, b32 clear_to_
     // find room, or find the end
     while ((arena->last->count_in_bytes + size_in_bytes > arena->last->capacity_in_bytes) && (arena->last->next != NULL)) {
         arena->last = arena->last->next;
+        if (arena->last) {
+            // if we just discoverd this, it must be zero'd.
+            // this helps with our mark implementation as well.
+            arena->last->count_in_bytes = 0;
+        }
     }
 
     if (arena->last->count_in_bytes + size_in_bytes <= arena->last->capacity_in_bytes) {
@@ -806,6 +799,22 @@ void *_Arena_Alloc(Arena *arena, u64 size_in_bytes, u64 alignment, b32 clear_to_
         return Arena_Internal_Get_New_Memory_At_Last_Region(arena, size_in_bytes, alignment, clear_to_zero);
     }
 }
+
+
+Arena_Mark Arena_Get_Mark(Arena *arena) {
+    Arena_Mark result = {
+        .last = arena->last,
+        .count = arena->last ? arena->last->count_in_bytes : 0,
+    };
+    return result;
+}
+void Arena_Set_To_Mark(Arena *arena, Arena_Mark mark) {
+    arena->last = mark.last ? mark.last : arena->first;
+    if (arena->last) {
+        arena->last->count_in_bytes = mark.count;
+    }
+}
+
 
 void Arena_Initialize_First_Page(Arena *arena, u64 first_page_size_in_bytes) {
     if (arena->first != NULL) return;
@@ -1510,9 +1519,12 @@ void *_Map_Put(Arena *arena, Map_Header *header, void *kv_array, void *key, u64 
 // ===================================================
 
 String Read_Entire_File(Arena *arena, String filename) {
-    // TODO revert arena after doing this.
-    const char *filename_c_str = String_To_C_Str(arena, filename);
-    FILE *file = fopen(filename_c_str, "rb");
+    // this might init a page that is to small to contain the file.
+    // But I work with Strings now. not c_strings
+    Arena_Mark mark = Arena_Get_Mark(arena);
+        FILE *file = fopen(String_To_C_Str(arena, filename), "rb");
+    Arena_Set_To_Mark(arena, mark);
+
     String result = {0};
 
     if (file) {
