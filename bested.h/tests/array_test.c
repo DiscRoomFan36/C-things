@@ -2,7 +2,7 @@
 #define ARRAY_INITAL_CAPCITY 1
 
 #define BESTED_IMPLEMENTATION
-#include "../bested.h"
+#include "../Bested.h"
 
 
 typedef struct {

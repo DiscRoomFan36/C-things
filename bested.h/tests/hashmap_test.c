@@ -1,6 +1,6 @@
 
 #define BESTED_IMPLEMENTATION
-#include "../bested.h"
+#include "../Bested.h"
 
 
 typedef struct {

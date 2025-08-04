@@ -1,8 +1,6 @@
 
 #define BESTED_IMPLEMENTATION
-#include "../bested.h"
-
-#include <stdatomic.h>
+#include "../Bested.h"
 
 int main(void) {
     Arena_Pool pool = {0};
