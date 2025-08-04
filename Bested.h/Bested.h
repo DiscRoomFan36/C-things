@@ -956,8 +956,8 @@ void Pool_Release(Arena_Pool *pool, Arena *to_release) {
             ASSERT(maybe_index % sizeof(Arena) == 0);
             s64 index = maybe_index / sizeof(Arena);
 
-            ASSERT(Flag_Intersects(pool->in_use_flags, Bit(index)));
-            Flag_Clear(            pool->in_use_flags, Bit(index));
+            ASSERT(Has_Bit(pool->in_use_flags, index));
+            Flag_Clear(pool->in_use_flags, Bit(index));
             return;
         }
 
