@@ -548,7 +548,10 @@ void Array_Shift(Array_Header *header, void *array, u64 item_size, u64 from_inde
     (ASSERT((0 <= (i) && (i) < (a).count) && (0 <= (n) && (n) <= (a)->count - (i))),                \
     Mem_Move((a)->items + (i), (a)->items + (i) + (n), ((a)->count - (i) - (n)) * Array_Item_Size(a)));
 
-#define Array_Clear(a)      ((a)->count = 0)
+
+// u64 index = it - array->items;
+#define Array_For_Each(type, it, array)                                             \
+    for (type *it = (array)->items; it < (array)->items + (array)->count; ++it)
 
 
 

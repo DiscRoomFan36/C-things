@@ -28,9 +28,9 @@ int main(void) {
     Array_Push(&arena, &people, ((Person){.name = S("Ryan"), .age = 11, .is_male = true}));
 
 
-    for (u64 i = 0; i < people.count; i++) {
-        Person p = people.items[i];
-        printf("%lu: "S_Fmt", age: %.2f, %s\n", i, S_Arg(p.name), p.age, p.is_male ? "Male" : "Female");
+    Array_For_Each(Person, p, &people) {
+        u64 i = p - people.items;
+        printf("%ld: "S_Fmt", age: %.2f, %s\n", i, S_Arg(p->name), p->age, p->is_male ? "Male" : "Female");
     }
 
     Arena_Free(&arena);
