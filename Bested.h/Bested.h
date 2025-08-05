@@ -4,7 +4,7 @@
 // Author   - Fletcher M
 //
 // Created  - 04/08/25
-// Modified - 04/08/25
+// Modified - 05/08/25
 //
 // Make sure to...
 //      #define BESTED_IMPLEMENTATION
@@ -153,6 +153,13 @@ typedef double          f64;
         abort();                                                                            \
     } } while (0)
 
+#define PANIC(message, ...) do {                                                            \
+        fprintf(stderr, "===========================================\n");                   \
+        fprintf(stderr, "%s:%d: PANIC: "message"\n", __FILE__, __LINE__, ##__VA_ARGS__);    \
+        fprintf(stderr, "===========================================\n");                   \
+        abort();                                                                            \
+    } while (0)
+
 #define UNREACHABLE() do {                                                                  \
         fprintf(stderr, "===========================================\n");                   \
         fprintf(stderr, "%s:%d: UNREACHABLE\n", __FILE__, __LINE__);                        \
@@ -160,9 +167,9 @@ typedef double          f64;
         abort();                                                                            \
     } while (0)
 
-#define TODO(message) do {                                                                  \
+#define TODO(message, ...) do {                                                             \
         fprintf(stderr, "===========================================\n");                   \
-        fprintf(stderr, "%s:%d: TODO: %s\n", __FILE__, __LINE__, (message));                \
+        fprintf(stderr, "%s:%d: TODO: "message"\n", __FILE__, __LINE__, ##__VA_ARGS__);     \
         fprintf(stderr, "===========================================\n");                   \
         abort();                                                                            \
     } while (0)
