@@ -1254,7 +1254,7 @@ internal inline Character_Buffer *String_Builder_Internal_Get_Character_Buffer_A
 
 u64 String_Builder_Count(String_Builder *sb) {
     u64 count = 0;
-    for (u64 i = 0; i < sb->buffer_index; i++) {
+    for (u64 i = 0; i <= sb->buffer_index; i++) {
         Character_Buffer *buffer = String_Builder_Internal_Get_Character_Buffer_At_Index(sb, i);
         count += buffer->count;
     }
@@ -1275,7 +1275,7 @@ u64 String_Builder_Total_Capacity(String_Builder *sb) {
 }
 
 void String_Builder_Clear(String_Builder *sb) {
-    for (u64 i = 0; i < sb->buffer_index; i++) {
+    for (u64 i = 0; i <= sb->buffer_index; i++) {
         Character_Buffer *buffer = String_Builder_Internal_Get_Character_Buffer_At_Index(sb, i);
         buffer->count = 0;
     }
@@ -1340,7 +1340,7 @@ String String_Builder_To_String(Arena *arena, String_Builder *sb) {
     }
 
     u64 index = 0;
-    for (u64 i = 0; i < sb->buffer_index; i++) {
+    for (u64 i = 0; i <= sb->buffer_index; i++) {
         Character_Buffer *buffer = String_Builder_Internal_Get_Character_Buffer_At_Index(sb, i);
         Mem_Copy(result.data + index, buffer->data, buffer->count);
         index += buffer->count;
@@ -1351,7 +1351,7 @@ String String_Builder_To_String(Arena *arena, String_Builder *sb) {
 }
 
 void String_Builder_To_File(String_Builder *sb, FILE *file) {
-    for (u64 i = 0; i < sb->buffer_index; i++) {
+    for (u64 i = 0; i <= sb->buffer_index; i++) {
         Character_Buffer *buffer = String_Builder_Internal_Get_Character_Buffer_At_Index(sb, i);
         fwrite(buffer->data, sizeof(char), buffer->count, file);
     }
