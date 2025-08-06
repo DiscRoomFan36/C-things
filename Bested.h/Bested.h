@@ -1171,7 +1171,7 @@ String String_Get_Next_Line(String *parseing, u64 *line_num, String_Get_Next_Lin
         *line_num += 1;
 
         if (remove_comments) {
-            s64 comment_index = String_Find_Index_Of_Char(next_line, '#');
+            s64 comment_index = String_Find_Index_Of(next_line, S("//"));
             if (comment_index != -1) { next_line.length = (u64)comment_index; }
         }
 
