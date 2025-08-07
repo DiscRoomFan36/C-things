@@ -4,7 +4,7 @@
 // Author   - Fletcher M
 //
 // Created  - 04/08/25
-// Modified - 06/08/25
+// Modified - 07/08/25
 //
 // Make sure to...
 //      #define BESTED_IMPLEMENTATION
@@ -60,6 +60,18 @@ typedef double          f64;
 #define enum32(type)    u32
 #define enum64(type)    u64
 
+
+
+// ===================================================
+//               Metaprograming stuff
+// ===================================================
+
+
+// put this before a function and it will be predef'd
+//
+// make sure to include this file before the metaprogram's output,
+// because of the integer typedef's
+#define function
 
 
 // ===================================================
@@ -389,6 +401,10 @@ String  String_Trim_Right(String s);
 // returns a String with the front chopped off, according to the test function.
 // use Is_Whitespace to chop the whitespace off of the front.
 String  String_Chop_While(String s, char_to_bool_func test_char_function);
+
+
+String String_Path_to_Filename(String s);
+String String_Remove_Extention(String s);
 
 typedef enum {
     SGNL_Remove_Comments = 1 << 0,
@@ -1148,6 +1164,26 @@ String String_Chop_While(String s, char_to_bool_func test_char_function) {
     }
     return String_Advanced(s, (s64)i);
 }
+
+String String_Path_to_Filename(String s) {
+    while (true) {
+        s64 index = String_Find_Index_Of_Char(s, '/');
+        if (index == -1) break;
+        String_Advance(&s, index+1);
+    }
+    return s;
+}
+
+String String_Remove_Extention(String s) {
+    for (s64 i = s.length; i >= 0; i--) {
+        if (s.data[i] == '.') {
+            s.length = i;
+            return s;
+        }
+    }
+    return s;
+}
+
 
 String String_Get_Next_Line(String *parseing, u64 *line_num, String_Get_Next_Line_Flag flags) {
     b32 remove_comments = Flag_Set(flags, SGNL_Remove_Comments);
