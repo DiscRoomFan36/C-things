@@ -4,14 +4,21 @@
 // Author   - Fletcher M
 //
 // Created  - 04/08/25
-// Modified - 07/08/25
+// Modified - 22/09/25
 //
 // Make sure to...
 //      #define BESTED_IMPLEMENTATION
-// somewhere in your project
+// ...somewhere in your project
+
+
+#ifdef __cplusplus
+    extern "C" {
+#endif
+
 
 #ifndef BESTED_H
 #define BESTED_H
+
 
 
 // ===================================================
@@ -103,7 +110,7 @@ typedef double          f64;
 #define Flag_Set(n, f)          ((n) |= (f))
 #define Flag_Clear(n, f)        ((n) &= ~(f))
 #define Flag_Toggle(n, f)       ((n) ^= (f))
-#define Flag_Exists(n, f)       ((n) & (f) == (f))      // Checks if all bits in 'f' are set in 'n'
+#define Flag_Exists(n, f)       (((n) & (f)) == (f))    // Checks if all bits in 'f' are set in 'n'
 #define Flag_Equals(n, f)       ((n) == (f))            // Checks exact equality
 #define Flag_Intersects(n, f)   (((n) & (f)) != 0)      // Checks if any bits in 'f' are set in 'n'
 
@@ -167,7 +174,7 @@ typedef double          f64;
 
 #define PANIC(message, ...) do {                                                            \
         fprintf(stderr, "===========================================\n");                   \
-        fprintf(stderr, "%s:%d: PANIC: "message"\n", __FILE__, __LINE__, ##__VA_ARGS__);    \
+        fprintf(stderr, "%s:%d: PANIC: " message "\n", __FILE__, __LINE__, ##__VA_ARGS__);    \
         fprintf(stderr, "===========================================\n");                   \
         abort();                                                                            \
     } while (0)
@@ -181,7 +188,7 @@ typedef double          f64;
 
 #define TODO(message, ...) do {                                                             \
         fprintf(stderr, "===========================================\n");                   \
-        fprintf(stderr, "%s:%d: TODO: "message"\n", __FILE__, __LINE__, ##__VA_ARGS__);     \
+        fprintf(stderr, "%s:%d: TODO: " message "\n", __FILE__, __LINE__, ##__VA_ARGS__);     \
         fprintf(stderr, "===========================================\n");                   \
         abort();                                                                            \
     } while (0)
@@ -696,7 +703,7 @@ u64 Mem_Align_Back(u64 size, u64 alignment) {
 }
 
 void *Mem_Byte_Offset(void *ptr, s64 bytes) {
-    u8 *ptr_u8 = ptr;
+    u8 *ptr_u8 = (u8*)ptr;
     return (void*)(ptr_u8 + bytes);
 }
 
@@ -737,7 +744,7 @@ s32 Mem_Cmp (void *ptr1, void *ptr2, u64 count) {
 // ===================================================
 
 internal Region *Arena_Internal_New_Region(u64 capacity_in_bytes) {
-    Region *new_region = BESTED_MALLOC(sizeof(Region) + capacity_in_bytes);
+    Region *new_region = (Region*) BESTED_MALLOC(sizeof(Region) + capacity_in_bytes);
     if (new_region) {
         new_region->next                = NULL;
         new_region->count_in_bytes      = 0;
@@ -861,7 +868,7 @@ void Arena_Add_Buffer_As_Storeage_Space(Arena *arena, void *buffer, u64 buffer_s
 
     u64 real_allocatable_space = buffer_size_in_bytes - sizeof(Region);
 
-    Region *new_region = buffer;
+    Region *new_region = (Region*) buffer;
     new_region->count_in_bytes      = 0;
     new_region->capacity_in_bytes   = real_allocatable_space;
     new_region->next                = NULL;
@@ -909,7 +916,7 @@ const char *Arena_sprintf(Arena *arena, const char *format, ...) {
     } else {
         // else we need to allocate some space.
 
-        buf      = Arena_Alloc_Clear(arena, (u64)formatted_size+1, false);
+        buf      = (char*)Arena_Alloc_Clear(arena, (u64)formatted_size+1, false);
         buf_size = (u64)formatted_size+1;
 
         va_start(args, format);
@@ -965,7 +972,7 @@ Arena *Pool_Get(Arena_Pool *pool) {
         }
 
         if (!pool->next_pool) {
-            pool->next_pool = BESTED_MALLOC(sizeof(Arena_Pool));
+            pool->next_pool = (Arena_Pool*)BESTED_MALLOC(sizeof(Arena_Pool));
             Mem_Zero(pool->next_pool, sizeof(Arena_Pool));
         }
         pool = pool->next_pool;
@@ -1047,7 +1054,7 @@ const char *String_To_C_Str(Arena *arena, String s) {
 
 String String_Duplicate(Arena *arena, String s, b32 null_terminate) {
     String result = {
-        .data   = Arena_Alloc(arena, s.length + (null_terminate ? 1 : 0)),
+        .data   = (char*) Arena_Alloc(arena, s.length + (null_terminate ? 1 : 0)),
         .length = s.length,
     };
     ASSERT(result.data);
@@ -1186,9 +1193,9 @@ String String_Remove_Extention(String s) {
 
 
 String String_Get_Next_Line(String *parseing, u64 *line_num, String_Get_Next_Line_Flag flags) {
-    b32 remove_comments = Flag_Set(flags, SGNL_Remove_Comments);
-    b32 trim            = Flag_Set(flags, SGNL_Trim);
-    b32 skip_empty      = Flag_Set(flags, SGNL_Skip_Empty);
+    b32 remove_comments = Flag_Exists(flags, SGNL_Remove_Comments);
+    b32 trim            = Flag_Exists(flags, SGNL_Trim);
+    b32 skip_empty      = Flag_Exists(flags, SGNL_Skip_Empty);
 
     String next_line = *parseing;
 
@@ -1366,7 +1373,7 @@ String String_Builder_To_String(Arena *arena, String_Builder *sb) {
     u64 count = String_Builder_Count(sb);
 
     String result = {
-        .data = Arena_Alloc_Clear(arena, count+1, false),
+        .data = (char*) Arena_Alloc_Clear(arena, count+1, false),
         .length = count,
     };
     if (!result.data) {
@@ -1425,7 +1432,7 @@ void Array_Shift(Array_Header *header, void *array, u64 item_size, u64 from_inde
 // ===================================================
 
 u64 _Map_hash_ptr_and_size(void *ptr, u64 size) {
-    u8 *u8_ptr = ptr;
+    u8 *u8_ptr = (u8*)ptr;
     u64 h = 1103;
     for (u64 i = 0; i < size; i++) h = h * 47 + u8_ptr[i];
 
@@ -1580,7 +1587,7 @@ String Read_Entire_File(Arena *arena, String filename) {
 
         if (length >= 0) {
             result.length = (u64)length;
-            result.data = Arena_Alloc_Clear(arena, result.length+1, false);
+            result.data = (char*) Arena_Alloc_Clear(arena, result.length+1, false);
             if (result.data) {
                 u64 read_bytes = fread(result.data, 1, result.length, file);
                 ASSERT(read_bytes == result.length);
@@ -1598,4 +1605,10 @@ String Read_Entire_File(Arena *arena, String filename) {
 
 
 #endif // BESTED_IMPLEMENTATION
+
+
+#ifdef __cplusplus
+    }
+#endif
+
 
