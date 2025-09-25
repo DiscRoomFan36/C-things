@@ -4,7 +4,7 @@
 // Author   - Fletcher M
 //
 // Created  - 04/08/25
-// Modified - 22/09/25
+// Modified - 25/09/25
 //
 // Make sure to...
 //      #define BESTED_IMPLEMENTATION
@@ -70,29 +70,32 @@ typedef double          f64;
 
 
 // ===================================================
-//               Metaprograming stuff
-// ===================================================
-
-
-// put this before a function and it will be predef'd
-//
-// make sure to include this file before the metaprogram's output,
-// because of the integer typedef's
-#define function
-
-
-// ===================================================
 //                    Nice Macros
 // ===================================================
 
 // I always forget how to call typeof()
-#define Typeof(x) __typeof__(x)
+#define Typeof(x)       __typeof__(x)
+#define Alignof(x)      alignof(x)
+
+// I really hate c++ sometimes
+#ifdef __cplusplus
+    #define ZEROED { /* Imagin there was a zero here */ }
+#else
+    #define ZEROED {0}
+#endif
 
 
-#define Min(a, b) ({ Typeof(a) _a = (a); Typeof(b) _b = (b); _a < _b ? _a : _b; })
-#define Max(a, b) ({ Typeof(a) _a = (a); Typeof(b) _b = (b); _a > _b ? _a : _b; })
+#define Min(a, b)   ({ Typeof(a) _a = (a); Typeof(b) _b = (b); _a < _b ? _a : _b; })
+#define Max(a, b)   ({ Typeof(a) _a = (a); Typeof(b) _b = (b); _a > _b ? _a : _b; })
 
-#define Is_Between(x, lower, upper) (((lower) <= (x)) && ((x) <= (upper)))
+#define Sign(T, x)  ((T)((x) > 0) - (T)((x) < 0))
+#define Abs(x)      (Sign(Typeof(x), (x)) * (x))
+
+// TODO this has the same problem as Min & Max
+#define Clamp(x, min, max)              ((x) < (min) ? (min) : (((x) > (max)) ? (max) : (x)))
+
+#define Is_Between(x, lower, upper)     (((lower) <= (x)) && ((x) <= (upper)))
+
 
 #define Array_Len(array)            (sizeof(array) / sizeof((array)[0]))
 
@@ -115,34 +118,25 @@ typedef double          f64;
 #define Flag_Intersects(n, f)   (((n) & (f)) != 0)      // Checks if any bits in 'f' are set in 'n'
 
 
-#define Kilobytes(value) ((value) * 1024LL)
-#define Megabytes(value) (Kilobytes(value) * 1024LL)
-#define Gigabytes(value) (Megabytes(value) * 1024LL)
-#define Terabytes(value) (Gigabytes(value) * 1024LL)
 
-#define ToKilobytes(value) ((u64)(value) / 1024.0)
-#define ToMegabytes(value) ((u64)ToKilobytes(value) / 1024.0)
-#define ToGigabytes(value) ((u64)ToMegabytes(value) / 1024.0)
-#define ToTerabytes(value) ((u64)ToGigabytes(value) / 1024.0)
+#define PI              3.1415926535897932384626433
+#define TAU             6.283185307179586476925286766559
+#define E               2.718281828459045235360287471352
+#define ROOT_2          1.414213562373095048801688724209
 
+#define KILOBYTE        (1024UL)
+#define MEGABYTE        (1024UL * 1024UL)
+#define GIGABYTE        (1024UL * 1024UL * 1024UL)
+#define TERABYTE        (1024UL * 1024UL * 1024UL * 1024UL)
 
-#define Thousands(value) ((value) * 1000LL)
-#define Millions(value)  (Thousands(value) * 1000LL)
-#define Billions(value)  (Millions(value)  * 1000LL)
-#define Trillions(value) (Billions(value)  * 1000LL)
+#define THOUSAND        (1000UL)
+#define MILLION         (1000UL * 1000UL)
+#define BILLION         (1000UL * 1000UL * 1000UL)
+#define TRILLION        (1000UL * 1000UL * 1000UL * 1000UL)
 
-#define ToThousands(value) ((u64)(value) / 1000.0)
-#define ToMillions(value)  ((u64)ToThousands(value) / 1000.0)
-#define ToBillions(value)  ((u64)ToMillions(value)  / 1000.0)
-#define ToTrillions(value) ((u64)ToBillions(value)  / 1000.0)
-
-
-#define Milli_From_Seconds(value)       Thousands(value)
-#define Micro_From_Milliseconds(value)  Thousands(value)
-#define Micro_From_Seconds(value)       Millions(value)
-
-#define Milli_From_Microseconds(value)  ((value) / 1000LL)
-#define Sec_From_Microseconds(value)    ((value) / 1000000LL)
+#define MILISECONDS_PER_SECOND      THOUSAND
+#define MICROSECONDS_PER_SECOND     MILLION
+#define NANOSECONDS_PER_SECOND      BILLION
 
 
 
@@ -222,6 +216,15 @@ s32   Mem_Cmp (void *ptr1, void *ptr2, u64 count);
 
 
 // ===================================================
+//                Misc Useful functions
+// ===================================================
+
+// only works on unix.
+u64 nanoseconds_since_unspecified_epoch(void);
+
+
+
+// ===================================================
 //                      Arena
 // ===================================================
 
@@ -231,7 +234,7 @@ s32   Mem_Cmp (void *ptr1, void *ptr2, u64 count);
 #endif
 
 #ifndef ARENA_REGION_DEFAULT_CAPACITY
-    #define ARENA_REGION_DEFAULT_CAPACITY   Kilobytes(32)
+    #define ARENA_REGION_DEFAULT_CAPACITY   (32 * KILOBYTE)
 #endif // ARENA_REGION_DEFAULT_CAPACITY
 
 
@@ -248,7 +251,7 @@ s32   Mem_Cmp (void *ptr1, void *ptr2, u64 count);
 // If you need 128-bit aligned pointers, just modify this file, or just only use the aligned parts,
 // and waste a bit of memory, its fine to do so, this arena dose it all the time.
 //
-#define Default_Alignment alignof(u64)
+#define Default_Alignment   Alignof(u64)
 
 typedef struct Region {
     struct Region *next;
@@ -303,8 +306,8 @@ void *_Arena_Alloc(Arena *arena, u64 size_in_bytes, u64 alignment, b32 clear_to_
 // Clear to zero by default
 #define Arena_Alloc(arena, size)                            _Arena_Alloc((arena), (size), Default_Alignment, true)
 #define Arena_Alloc_Clear(arena, size, clear_to_zero)       _Arena_Alloc((arena), (size), Default_Alignment, (clear_to_zero))
-#define Arena_Alloc_Struct(arena, type)                     (type *)_Arena_Alloc((arena),           sizeof(type), alignof(type),    true)
-#define Arena_Alloc_Array(arena, count, type)               (type *)_Arena_Alloc((arena), (count) * sizeof(type), alignof(type), true)
+#define Arena_Alloc_Struct(arena, type)                     (type *)_Arena_Alloc((arena),           sizeof(type), Alignof(type), true)
+#define Arena_Alloc_Array(arena, count, type)               (type *)_Arena_Alloc((arena), (count) * sizeof(type), Alignof(type), true)
 
 // get an arena's current position, to rewind it later.
 Arena_Mark Arena_Get_Mark(Arena *arena);
@@ -363,7 +366,10 @@ b32 Is_Whitespace(char c);
 #define To_Lower(c) (('A' <= (c) && (c) <= 'Z') ? ((c) - 'A' + 'a') : (c))
 
 
-typedef struct { char *data; u64 length; } String;
+typedef struct {
+    char *data;
+    u64 length;
+} String;
 
 // Formatting for printf()
 #define S_Fmt    "%.*s"
@@ -372,7 +378,10 @@ typedef struct { char *data; u64 length; } String;
 String  String_From_C_Str(const char *str);
 #define S(c_str)    String_From_C_Str(c_str)
 
+
 const char *String_To_C_Str(Arena *arena, String s);
+const char *temp_String_To_C_Str(String s);
+
 
 String  String_Duplicate(Arena *arena, String s, b32 null_terminate);
 // duplicate a String, dose not zero terminate the string.
@@ -429,6 +438,11 @@ typedef enum {
 String  String_Get_Next_Line(String *parseing, u64 *line_num, String_Get_Next_Line_Flag flags);
 
 
+const char *temp_sprintf       (const char *format, ...) __attribute__ ((format (printf, 1, 2)));
+// is null terminated
+String      temp_String_sprintf(const char *format, ...) __attribute__ ((format (printf, 1, 2)));
+
+
 
 // ===================================================
 //                    String Builder
@@ -440,7 +454,7 @@ static_assert(Is_Pow_2(STRING_BUILDER_NUM_BUFFERS), "For Speed");
 // how much to alloc by default when a new segment of memory is needed.
 #ifndef STRING_BUILDER_BUFFER_DEFAULT_SIZE
     // 4096 bytes is equal to the default page size in windows and linux. probably.
-    #define STRING_BUILDER_BUFFER_DEFAULT_SIZE      Kilobytes(4)
+    #define STRING_BUILDER_BUFFER_DEFAULT_SIZE      (4 * KILOBYTE)
 #endif
 
 // This macro is called when something goes wrong. Recommended to just use assert.
@@ -531,50 +545,80 @@ void String_Builder_To_File(String_Builder *sb, FILE *file);
 //     f32 *items;
 // }
 //
-#define _Array_Header_ struct { u64 count; u64 capacity; }
+#define _Array_Header_ struct { u64 count; u64 capacity; Arena *allocator; }
 
 typedef _Array_Header_ Array_Header;
-void *Array_Grow(Arena *arena, Array_Header *header, void *array, u64 item_size, u64 item_align, u64 count, b32 clear_to_zero);
+void *Array_Grow(Array_Header *header, void *array, u64 item_size, u64 item_align, u64 count, b32 clear_to_zero);
 void Array_Shift(Array_Header *header, void *array, u64 item_size, u64 from_index);
 
 #define Array_Header_Cast(a)    ((Array_Header*)(a))
 #define Array_Item_Size(a)      sizeof(*(a)->items)
-#define Array_Item_Align(a)     __alignof__(*(a)->items)
+#define Array_Item_Align(a)     Alignof(*(a)->items)
 
 // add a single value
-#define Array_Push(arena, a, value)                                                                             \
-    (*((void **)&(a)->items) = Array_Grow((arena), Array_Header_Cast(a), (a)->items, Array_Item_Size(a), Array_Item_Align(a), (a)->count + 1, false),     \
+#define Array_Push(a, value)                                                                                                                    \
+    (*((void **)&(a)->items) = Array_Grow(Array_Header_Cast(a), (a)->items, Array_Item_Size(a), Array_Item_Align(a), (a)->count + 1, false),    \
     (a)->items[(a)->count++] = (value))
 
 // add 'n' unzero'd items, returns a pointer to the first element
-#define Array_Add(arena, a, n)                                                                                  \
-    (*((void **)&(a)->items) = Array_Grow((arena), Array_Header_Cast(a), (a)->items, Array_Item_Size(a), Array_Item_Align(a), (a)->count + (n), false),   \
-    (a)->count += (n),                                                                                          \
+#define Array_Add(a, n)                                                                                                                         \
+    (*((void **)&(a)->items) = Array_Grow(Array_Header_Cast(a), (a)->items, Array_Item_Size(a), Array_Item_Align(a), (a)->count + (n), false),  \
+    (a)->count += (n),                                                                                                                          \
     &(a)->items[(a)->count - (n)])
 
 
 // Add 'n' zero'd items to the back of the list
-#define Array_Add_Clear(arena, a, n)                                                                            \
-    (*((void **)&(a)->items) = Array_Grow((arena), Array_Header_Cast(a), (a)->items, Array_Item_Size(a), (a)->count + (n), true),    \
-    (a)->count += (n),                                                                                          \
+#define Array_Add_Clear(a, n)                                                                                                                   \
+    (*((void **)&(a)->items) = Array_Grow(Array_Header_Cast(a), (a)->items, Array_Item_Size(a), Array_Item_Align(a), (a)->count + (n), true),   \
+    (a)->count += (n),                                                                                                                          \
     &(a)->items[(a)->count - (n)])
 
 // make sure there is enough room to hold 'n' items, dose not increase count.
-#define Array_Reserve(arena, a, n)                                                                              \
-    (*((void **)&(a)->items) = Array_Grow((arena), Array_Header_Cast(a), (a)->items, Array_Item_Size(a), (n), false))
+#define Array_Reserve(a, n)                                                                                             \
+    (*((void **)&(a)->items) = Array_Grow(Array_Header_Cast(a), (a)->items, Array_Item_Size(a), Array_Item_Align(a), (n), false))
 
-#define Array_Insert(arena, a, i, value)                                                                        \
-    (*((void **)&(a)->items) = Array_Grow((arena), Array_Header_Cast(a), (a)->items, Array_Item_Size(a), (a)->count + 1, false),   \
-    Mem_Move((a)->items + (i), (a)->items + i - 1, ((a)->count - (i)) * Array_Item_Size(a)));  TODO("Array_Insert")
+#define Array_Insert(a, i, value)                                                                                                               \
+    (*((void **)&(a)->items) = Array_Grow(Array_Header_Cast(a), (a)->items, Array_Item_Size(a), Array_Item_Align(a), (a)->count + 1, false),    \
+    Mem_Move((a)->items + (i), (a)->items + i - 1, ((a)->count - (i)) * Array_Item_Size(a)),                                                    \
+    (a)->items[(i)] = (value),                                                                                                                  \
+    (a)->count += 1)
 
-#define Array_Remove(a, i, n)                                                                       \
-    (ASSERT((0 <= (i) && (i) < (a).count) && (0 <= (n) && (n) <= (a)->count - (i))),                \
-    Mem_Move((a)->items + (i), (a)->items + (i) + (n), ((a)->count - (i) - (n)) * Array_Item_Size(a)));
+#define Array_Remove(a, i, n)                                                                               \
+    do {                                                                                                    \
+        ASSERT((0 <= (i) && (i) < (a)->count) && (0 <= (n) && (n) <= (a)->count - (i)));                    \
+        Mem_Move((a)->items + (i), (a)->items + (i) + (n), ((a)->count - (i) - (n)) * Array_Item_Size(a));  \
+        (a)->count -= (n);                                                                                  \
+    } while(0)
 
 
 // u64 index = it - array->items;
 #define Array_For_Each(type, it, array)                                             \
     for (type *it = (array)->items; it < (array)->items + (array)->count; ++it)
+
+
+#define Array_Free(array)                   \
+    do {                                    \
+        if ((array)->allocator != NULL) {   \
+            fprintf(stderr, "=======================================================================================\n");       \
+            fprintf(stderr, "Are you serious?\n");                                                                              \
+            fprintf(stderr, "\n");                                                                                              \
+            fprintf(stderr, "Did you just attempt to free an array that was allready given an allocator?\n");                   \
+            fprintf(stderr, "Not just any allocator either, the only thing arrays accept are arena allocators.\n");             \
+            fprintf(stderr, "\n");                                                                                              \
+            fprintf(stderr, "You know I do this for you right?\n");                                                             \
+            fprintf(stderr, "I give you all these tools and this is what you do with it?\n");                                   \
+            fprintf(stderr, "Make a mistake that could have easily been ignored, look into this macro you just called.\n");     \
+            fprintf(stderr, "I can check if you have an allocator and just ignore it, but I wont.\n");                          \
+            fprintf(stderr, "\n");                                                                                              \
+            fprintf(stderr, "I'm not gonna even ASSERT(false).\n");                                                             \
+            fprintf(stderr, "I'm gonna let the segmentation falt, or the subtle memory bug do the talking for me.\n");          \
+            fprintf(stderr, "\n");                                                                                              \
+            fprintf(stderr, "I hope you have a terrible day.\n");                                                               \
+            fprintf(stderr, "=======================================================================================\n");       \
+        }                                   \
+        BESTED_FREE((array)->items);        \
+        (array)->items = NULL;              \
+    } while (0)
 
 
 
@@ -682,8 +726,9 @@ String Read_Entire_File(Arena *arena, String filename);
 #include <stdarg.h>
 
 
-#define BESTED_MALLOC(size)    malloc(size)
-#define BESTED_FREE(ptr)       free(ptr)
+#define BESTED_ALIGNED_ALLOC(align, size)       aligned_alloc((align), (size))
+#define BESTED_MALLOC(size)                     BESTED_ALIGNED_ALLOC(Alignof(u64), size)
+#define BESTED_FREE(ptr)                        free(ptr)
 
 
 // ===================================================
@@ -735,6 +780,37 @@ void *Mem_Set (void *ptr, u8 value, u64 size) {
 
 s32 Mem_Cmp (void *ptr1, void *ptr2, u64 count) {
     return memcmp(ptr1, ptr2, count);
+}
+
+
+
+// ===================================================
+//                Misc Useful functions
+// ===================================================
+
+#ifdef _WIN32
+    #error "We dont support windows currently, or at least not this one function. just delete it if you need to use the rest of this library"
+#elif unix
+    #include <unistd.h>
+    #include <time.h>
+#endif
+
+
+u64 nanoseconds_since_unspecified_epoch(void) {
+#ifdef unix
+    struct timespec ts;
+
+    #ifndef CLOCK_MONOTONIC
+        #define VSCODE_IS_DUMB
+        #define CLOCK_MONOTONIC 69420
+    #endif
+    // dont worry, this will never trigger.
+    ASSERT(CLOCK_MONOTONIC != 69420);
+
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+
+    return NANOSECONDS_PER_SECOND * ts.tv_sec + ts.tv_nsec;
+#endif
 }
 
 
@@ -1051,6 +1127,23 @@ const char *String_To_C_Str(Arena *arena, String s) {
     return String_Duplicate(arena, s, true).data;
 }
 
+#define TEMP_STRING_TO_C_STR_NUM_BUFFERS    64
+#define TEMP_STRING_TO_C_STR_MAX_LENGTH     (4 * KILOBYTE)
+const char *temp_String_To_C_Str(String s) {
+    local_persist char buffers[TEMP_STRING_TO_C_STR_NUM_BUFFERS][TEMP_STRING_TO_C_STR_MAX_LENGTH];
+    local_persist u32  current_buffer_index = 0;
+
+    ASSERT(s.length + 1 < TEMP_STRING_TO_C_STR_MAX_LENGTH && "Your String is to big to fit into a temporary buffer");
+
+    char *buf = buffers[current_buffer_index];
+    current_buffer_index = (current_buffer_index + 1) % TEMP_STRING_TO_C_STR_NUM_BUFFERS;
+
+    Mem_Copy(buf, s.data, s.length);
+    buf[s.length] = 0;
+
+    return buf;
+}
+
 
 String String_Duplicate(Arena *arena, String s, b32 null_terminate) {
     String result = {
@@ -1224,6 +1317,40 @@ String String_Get_Next_Line(String *parseing, u64 *line_num, String_Get_Next_Lin
     }
 
     return next_line;
+}
+
+
+#define TEMP_SPRINTF_NUM_BUFFERS     64
+#define TEMP_SPRINTF_BUFFER_SIZE    512
+
+const char *temp_sprintf(const char *format, ...) {
+    local_persist char buffers[TEMP_SPRINTF_NUM_BUFFERS][TEMP_SPRINTF_BUFFER_SIZE];
+    local_persist u32  current_buffer_index = 0;
+
+    char *buf = buffers[current_buffer_index];
+    current_buffer_index = (current_buffer_index + 1) % TEMP_SPRINTF_NUM_BUFFERS;
+
+    va_list args;
+    va_start(args, format);
+        vsnprintf(buf, TEMP_SPRINTF_BUFFER_SIZE, format, args);
+    va_end(args);
+
+    return buf;
+}
+
+String temp_String_sprintf(const char *format, ...) {
+    local_persist char buffers[TEMP_SPRINTF_NUM_BUFFERS][TEMP_SPRINTF_BUFFER_SIZE];
+    local_persist u32  current_buffer_index = 0;
+
+    char *buf = buffers[current_buffer_index];
+    current_buffer_index = (current_buffer_index + 1) % TEMP_SPRINTF_NUM_BUFFERS;
+
+    va_list args;
+    va_start(args, format);
+        vsnprintf(buf, TEMP_SPRINTF_BUFFER_SIZE, format, args);
+    va_end(args);
+
+    return String_From_C_Str(buf);
 }
 
 
@@ -1406,13 +1533,21 @@ void String_Builder_To_File(String_Builder *sb, FILE *file) {
 //                Dynamic Arrays
 // ===================================================
 
-void *Array_Grow(Arena *arena, Array_Header *header, void *array, u64 item_size, u64 item_align, u64 count, b32 clear_to_zero) {
+void *Array_Grow(Array_Header *header, void *array, u64 item_size, u64 item_align, u64 count, b32 clear_to_zero) {
     if (count > header->capacity) {
         header->capacity = header->capacity ? header->capacity * 2 : ARRAY_INITAL_CAPACITY;
         while (header->capacity < count) header->capacity *= 2;
 
-        void *new_array = _Arena_Alloc(arena, item_size * header->capacity, item_align, false);
-        Mem_Copy(new_array, array, item_size * header->count);
+        void *new_array;
+        if (header->allocator) {
+            new_array = _Arena_Alloc(header->allocator, item_size * header->capacity, item_align, false);
+            Mem_Copy(new_array, array, item_size * header->count);
+        } else {
+            new_array = BESTED_ALIGNED_ALLOC(item_align, item_size * header->capacity);
+            Mem_Copy(new_array, array, item_size * header->count);
+            BESTED_FREE(array);
+        }
+
         array = new_array;
     }
 
@@ -1578,7 +1713,7 @@ String Read_Entire_File(Arena *arena, String filename) {
         FILE *file = fopen(String_To_C_Str(arena, filename), "rb");
     Arena_Set_To_Mark(arena, mark);
 
-    String result = {0};
+    String result = ZEROED;
 
     if (file) {
         fseek(file, 0, SEEK_END);
