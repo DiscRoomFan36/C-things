@@ -79,7 +79,7 @@ typedef double          f64;
 
 // I really hate c++ sometimes
 #ifdef __cplusplus
-    #define ZEROED { /* Imagin there was a zero here */ }
+    #define ZEROED { /* Imagine there was a zero here */ }
 #else
     #define ZEROED {0}
 #endif
