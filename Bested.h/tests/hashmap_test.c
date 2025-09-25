@@ -22,10 +22,11 @@ Arena arena = {0};
 int main(void) {
 
     Person_Map people = {0};
+    people.allocator = &arena;
 
     Person jim = {.name = S("Jim"), .age = 43, .is_male = true};
 
-    Map_Put(&arena, &people, jim.age, jim);
+    Map_Put(&people, jim.age, jim);
 
 
     Person *jim_again = Map_Get(&people, Person, jim.age);
@@ -36,6 +37,9 @@ int main(void) {
         Person p = people.items[i].value;
         printf("%lu: "S_Fmt", age: %u, %s\n", i, S_Arg(p.name), p.age, p.is_male ? "Male" : "Female");
     }
+
+    // dont have to do this because we provided an allocator.
+    // Map_Free(&people);
 
     Arena_Free(&arena);
     return 0;

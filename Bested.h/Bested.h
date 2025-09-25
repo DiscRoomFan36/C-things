@@ -496,6 +496,9 @@ typedef struct String_Builder {
     u64 buffer_index;
     // the first in a linked list.
     Segment first_segment_holder;
+
+    // set an allocator to use it to allocate, otherwise uses 'BESTED_MALLOC()'.
+    Arena *allocator;
 } String_Builder;
 
 
@@ -510,23 +513,24 @@ u64 String_Builder_Total_Capacity(String_Builder *sb);
 void String_Builder_Clear(String_Builder *sb);
 
 // Dose not check for NULL byte
-void String_Builder_Ptr_And_Size(Arena *arena, String_Builder *sb, char *ptr, u64 size);
+void String_Builder_Ptr_And_Size(String_Builder *sb, char *ptr, u64 size);
 // Dose not check for NULL byte
-void String_Builder_String(Arena *arena, String_Builder *sb, String s);
+void String_Builder_String(String_Builder *sb, String s);
 
-u64 String_Builder_printf(Arena *arena, String_Builder *sb, const char *format, ...) __attribute__ ((format (printf, 3, 4)));
+u64 String_Builder_printf(String_Builder *sb, const char *format, ...) __attribute__ ((format (printf, 2, 3)));
 
-#define String_Builder_Struct_Bytes(arena, sb, struct_ptr) String_Builder_Ptr_And_Size((arena), (sb), (void*) (struct_ptr), sizeof(*(struct_ptr)))
-#define String_Builder_Array_Bytes(arena, sb, ptr, count) String_Builder_Ptr_And_Size((arena), (sb), (void*)(ptr), sizeof(*(ptr)) * (count))
+#define String_Builder_Struct_Bytes(sb, struct_ptr) String_Builder_Ptr_And_Size((sb), (void*) (struct_ptr), sizeof(*(struct_ptr)))
+#define String_Builder_Array_Bytes(sb, ptr, count)  String_Builder_Ptr_And_Size((sb), (void*)(ptr), sizeof(*(ptr)) * (count))
 
 
 // A trailing NULL byte is appended, so you can pass it into functions that expect a C String
-String String_Builder_To_String(Arena *arena, String_Builder *sb);
+String String_Builder_To_String(String_Builder *sb);
 
 // Dose not write a trailing NULL byte, (as apposed to SB_to_SV)
 void String_Builder_To_File(String_Builder *sb, FILE *file);
 
-
+// only call if your not useing an allocator.
+void String_Builder_Free(String_Builder *sb);
 
 
 // ===================================================
@@ -641,6 +645,7 @@ void Array_Shift(Array_Header *header, void *array, u64 item_size, u64 from_inde
         u64 count;                      \
         u64 capacity;                   \
         Map_Hash_Entry *table;          \
+        Arena *allocator;               \
     }
         // u64 insert_index;
         // u64 used_count_threshold;
@@ -676,13 +681,12 @@ s64   _Map_get_index_of_key_in_table    (Map_Hash_Entry *table, u64 table_size, 
 s64   _Map_get_index_of_key_in_items    (Map_Hash_Entry *table, u64 table_size, void *kv_array, u64 hash, void *key, u64 key_size, u64 kv_pair_size);
 s64   _Map_get_index_of_key_in_items    (Map_Hash_Entry *table, u64 table_size, void *kv_array, u64 hash, void *key, u64 key_size, u64 kv_pair_size);
 void *_Map_get_pointer_to_pair_in_items (Map_Hash_Entry *table, u64 table_size, void *kv_array, u64 hash, void *key, u64 key_size, u64 kv_pair_size);
-void *_Map_Grow                         (Arena *arena, Map_Header *header, void *kv_array, u64 key_size, u64 kv_pair_size, u64 count);
-void *_Map_Put                          (Arena *arena, Map_Header *header, void *kv_array, void *key, u64 key_size, void *kv_pair, u64 kv_pair_size);
+void *_Map_Grow                         (Map_Header *header, void *kv_array, u64 key_size, u64 kv_pair_size, u64 count);
+void *_Map_Put                          (Map_Header *header, void *kv_array, void *key, u64 key_size, void *kv_pair, u64 kv_pair_size);
 
 // Generic map
-#define Map_Put(arena, m, k, val)                                                           \
+#define Map_Put(m, k, val)                                                           \
     ((m)->items = _Map_Put(                                                                 \
-                    (arena),                                                                \
                     Map_Header_Cast(m), (m)->items,                                         \
                     &(k), Map_Key_Size(m),                                                  \
                     &((Typeof(*(m)->items)){.key = (k), .value = val}), Map_Pair_Size(m)    \
@@ -702,6 +706,31 @@ void *_Map_Put                          (Arena *arena, Map_Header *header, void 
 #define Map_Get_Ptr_Null(m, k)          TODO("Map_Get_Ptr_Null")
 #define Map_Del(m, k)                   TODO("Map_Del")
 
+#define Map_Free(m)                         \
+    do {                                    \
+        if ((m)->allocator != NULL) {       \
+            fprintf(stderr, "=======================================================================================\n");       \
+            fprintf(stderr, "Are you serious?\n");                                                                              \
+            fprintf(stderr, "\n");                                                                                              \
+            fprintf(stderr, "Did you just attempt to free a hashmap that was allready given an allocator?\n");                  \
+            fprintf(stderr, "Not just any allocator either, the only thing hashmaps accept are arena allocators.\n");           \
+            fprintf(stderr, "\n");                                                                                              \
+            fprintf(stderr, "You know I do this for you right?\n");                                                             \
+            fprintf(stderr, "I give you all these tools and this is what you do with it?\n");                                   \
+            fprintf(stderr, "Make a mistake that could have easily been ignored, look into this macro you just called.\n");     \
+            fprintf(stderr, "I can check if you have an allocator and just ignore it, but I wont.\n");                          \
+            fprintf(stderr, "\n");                                                                                              \
+            fprintf(stderr, "I'm not gonna even ASSERT(false).\n");                                                             \
+            fprintf(stderr, "I'm gonna let the segmentation falt, or the subtle memory bug do the talking for me.\n");          \
+            fprintf(stderr, "\n");                                                                                              \
+            fprintf(stderr, "I hope you have a terrible day.\n");                                                               \
+            fprintf(stderr, "=======================================================================================\n");       \
+        }                                   \
+        BESTED_FREE((m)->table);            \
+        BESTED_FREE((m)->items);            \
+        (m)->table = NULL;                  \
+        (m)->items = NULL;                  \
+    } while (0)
 
 
 // ===================================================
@@ -1359,7 +1388,7 @@ String temp_String_sprintf(const char *format, ...) {
 //                    String Builder
 // ===================================================
 
-internal Character_Buffer *String_Builder_Internal_Maybe_Expand_To_Fit(Arena *arena, String_Builder *sb, u64 size) {
+internal Character_Buffer *String_Builder_Internal_Maybe_Expand_To_Fit(String_Builder *sb, u64 size) {
     // set the current segment to the first segment if its null (aka just after zero initialization)
     if (sb->current_segment == NULL) sb->current_segment = &sb->first_segment_holder;
 
@@ -1376,7 +1405,11 @@ internal Character_Buffer *String_Builder_Internal_Maybe_Expand_To_Fit(Arena *ar
 
         if (sb->buffer_index % STRING_BUILDER_NUM_BUFFERS == 0) {
             if (!sb->current_segment->next) {
-                sb->current_segment->next = Arena_Alloc_Struct(arena, Segment);
+                if (sb->allocator) {
+                    sb->current_segment->next = Arena_Alloc_Struct(sb->allocator, Segment);
+                } else {
+                    sb->current_segment->next = BESTED_MALLOC(sizeof(Segment));
+                }
 
                 if (!sb->current_segment->next) {
                     STRING_BUILDER_PANIC("String Builder - maybe_expand_to_fit: failed to malloc a new segment holder");
@@ -1395,7 +1428,11 @@ internal Character_Buffer *String_Builder_Internal_Maybe_Expand_To_Fit(Arena *ar
         u64 default_size = sb->base_new_allocation ? sb->base_new_allocation : STRING_BUILDER_BUFFER_DEFAULT_SIZE;
         u64 to_add_size = Max(size, default_size);
 
-        last_buffer->data = Arena_Alloc_Array(arena, to_add_size, char);
+        if (sb->allocator) {
+            last_buffer->data = Arena_Alloc_Clear(sb->allocator, to_add_size * sizeof(char), true);
+        } else {
+            last_buffer->data = BESTED_MALLOC(to_add_size * sizeof(char));
+        }
 
         if (!last_buffer->data) {
             STRING_BUILDER_PANIC("maybe_expand_to_fit: failed to malloc a new segment with to_add_size");
@@ -1454,10 +1491,10 @@ void String_Builder_Clear(String_Builder *sb) {
     sb->current_segment  = &sb->first_segment_holder;
 }
 
-void String_Builder_Ptr_And_Size(Arena *arena, String_Builder *sb, char *ptr, u64 size) {
+void String_Builder_Ptr_And_Size(String_Builder *sb, char *ptr, u64 size) {
     if (size == 0) return;
 
-    Character_Buffer *buffer = String_Builder_Internal_Maybe_Expand_To_Fit(arena, sb, size);
+    Character_Buffer *buffer = String_Builder_Internal_Maybe_Expand_To_Fit(sb, size);
 
     if (!buffer) return; // String_Builder_Internal_Maybe_Expand_To_Fit() has already raised the panic.
 
@@ -1465,11 +1502,11 @@ void String_Builder_Ptr_And_Size(Arena *arena, String_Builder *sb, char *ptr, u6
     buffer->count += size;
 }
 
-void String_Builder_String(Arena *arena, String_Builder *sb, String s) {
-    String_Builder_Ptr_And_Size(arena, sb, s.data, s.length);
+void String_Builder_String(String_Builder *sb, String s) {
+    String_Builder_Ptr_And_Size(sb, s.data, s.length);
 }
 
-u64 String_Builder_printf(Arena *arena, String_Builder *sb, const char *format, ...) {
+u64 String_Builder_printf(String_Builder *sb, const char *format, ...) {
     va_list args;
     va_start(args, format);
         // TODO figure out how to do the thing we did in Arena.h for its sprintf
@@ -1484,7 +1521,7 @@ u64 String_Builder_printf(Arena *arena, String_Builder *sb, const char *format, 
 
     // +1 because printf also puts a trailing '\0' byte.
     // we ignore that for the rest of the code.
-    Character_Buffer *buffer = String_Builder_Internal_Maybe_Expand_To_Fit(arena, sb, (u64)formatted_size+1);
+    Character_Buffer *buffer = String_Builder_Internal_Maybe_Expand_To_Fit(sb, (u64)formatted_size+1);
 
     if (!buffer) return 0; // maybe_expand_to_fit has already raised the panic.
 
@@ -1496,13 +1533,20 @@ u64 String_Builder_printf(Arena *arena, String_Builder *sb, const char *format, 
     return (u64)formatted_size;
 }
 
-String String_Builder_To_String(Arena *arena, String_Builder *sb) {
+String String_Builder_To_String(String_Builder *sb) {
     u64 count = String_Builder_Count(sb);
 
     String result = {
-        .data = (char*) Arena_Alloc_Clear(arena, count+1, false),
+        .data   = NULL,
         .length = count,
     };
+
+    if (sb->allocator) {
+        result.data = Arena_Alloc_Clear(sb->allocator, count+1, false);
+    } else {
+        result.data = BESTED_MALLOC(count+1);
+    }
+
     if (!result.data) {
         STRING_BUILDER_PANIC("Arena_Alloc failed when trying to allocate enough memory to hold to result string from String_Builder_To_String()");
         result.length = 0;
@@ -1525,6 +1569,52 @@ void String_Builder_To_File(String_Builder *sb, FILE *file) {
         Character_Buffer *buffer = String_Builder_Internal_Get_Character_Buffer_At_Index(sb, i);
         fwrite(buffer->data, sizeof(char), buffer->count, file);
     }
+}
+
+void String_Builder_Free(String_Builder *sb) {
+    if (sb->allocator) {
+            fprintf(stderr, "=======================================================================================\n");
+            fprintf(stderr, "Are you serious?\n");
+            fprintf(stderr, "\n");
+            fprintf(stderr, "Did you just attempt to free a string buffer that was allready given an allocator?\n");
+            fprintf(stderr, "Not just any allocator either, the only thing string builders accept are arena allocators.\n");
+            fprintf(stderr, "\n");
+            fprintf(stderr, "You know I do this for you right?\n");
+            fprintf(stderr, "I give you all these tools and this is what you do with it?\n");
+            fprintf(stderr, "Make a mistake that could have easily been ignored, look into this function you just called.\n");
+            fprintf(stderr, "I can check if you have an allocator and just ignore it, but I wont.\n");
+            fprintf(stderr, "\n");
+            fprintf(stderr, "I'm not gonna even ASSERT(false).\n");
+            fprintf(stderr, "I'm gonna let the segmentation falt, or the subtle memory bug do the talking for me.\n");
+            fprintf(stderr, "\n");
+            fprintf(stderr, "I hope you have a terrible day.\n");
+            fprintf(stderr, "=======================================================================================\n");
+    }
+
+    Segment *segment = &sb->first_segment_holder;
+    bool first_segment = true;
+
+    while (segment) {
+        for (u32 i = 0; i < STRING_BUILDER_NUM_BUFFERS; i++) {
+            Character_Buffer *buffer = &segment->buffers[i];
+            if (buffer->data) BESTED_FREE(buffer->data);
+
+            // only matters if its the first segment.
+            buffer->count    = 0;
+            buffer->capacity = 0;
+            buffer->data     = NULL;
+        }
+
+        Segment *next_segment = segment->next;
+
+        if (!first_segment) BESTED_FREE(segment);
+        first_segment = false;
+
+        segment = next_segment;
+    }
+
+    sb->first_segment_holder.next = NULL;
+    sb->current_segment = &sb->first_segment_holder;
 }
 
 
@@ -1632,7 +1722,7 @@ void *_Map_get_pointer_to_pair_in_items(Map_Hash_Entry *table, u64 table_size, v
     return ((u8*)kv_array) + ((u64)index_in_items * kv_pair_size);
 }
 
-void *_Map_Grow(Arena *arena, Map_Header *header, void *kv_array, u64 key_size, u64 kv_pair_size, u64 count) {
+void *_Map_Grow(Map_Header *header, void *kv_array, u64 key_size, u64 kv_pair_size, u64 count) {
     if (count > header->capacity) {
         u64 old_table_size = header->capacity * Map_Table_Size_Multiplier;
 
@@ -1641,9 +1731,16 @@ void *_Map_Grow(Arena *arena, Map_Header *header, void *kv_array, u64 key_size, 
 
         u64 new_table_size = new_capacity * Map_Table_Size_Multiplier;
 
-        // do we care about proper alignment? Nah
-        void *new_kv_array = Arena_Alloc(arena, new_capacity * kv_pair_size);
-        Map_Hash_Entry *new_table = Arena_Alloc_Array(arena, new_table_size, Map_Hash_Entry);
+        void *new_kv_array;
+        Map_Hash_Entry *new_table;
+        if (header->allocator) {
+            // do we care about proper alignment? Nah
+            new_kv_array = Arena_Alloc(header->allocator, new_capacity * kv_pair_size);
+            new_table    = Arena_Alloc_Array(header->allocator, new_table_size, Map_Hash_Entry);
+        } else {
+            new_kv_array = BESTED_MALLOC(new_capacity * kv_pair_size);
+            new_table    = BESTED_MALLOC(new_table_size * sizeof(Map_Hash_Entry));
+        }
 
 
         // we need to copy over all the keys and shit.
@@ -1672,8 +1769,8 @@ void *_Map_Grow(Arena *arena, Map_Header *header, void *kv_array, u64 key_size, 
     return kv_array;
 }
 
-void *_Map_Put(Arena *arena, Map_Header *header, void *kv_array, void *key, u64 key_size, void *kv_pair, u64 kv_pair_size) {
-    kv_array = _Map_Grow(arena, header, kv_array, key_size, kv_pair_size, header->count + 1);
+void *_Map_Put(Map_Header *header, void *kv_array, void *key, u64 key_size, void *kv_pair, u64 kv_pair_size) {
+    kv_array = _Map_Grow(header, kv_array, key_size, kv_pair_size, header->count + 1);
 
     u64 hash = _Map_hash_ptr_and_size(key, key_size);
     s64 index_in_table = _Map_maybe_get_index_of_key(header->table, Map_Table_Size(header), kv_array, hash, key, key_size, kv_pair_size);
