@@ -819,14 +819,14 @@ s32 Mem_Cmp (void *ptr1, void *ptr2, u64 count) {
 
 #ifdef _WIN32
     #error "We dont support windows currently, or at least not this one function. just delete it if you need to use the rest of this library"
-#elif unix
+#else
     #include <unistd.h>
     #include <time.h>
 #endif
 
 
 u64 nanoseconds_since_unspecified_epoch(void) {
-#ifdef unix
+#ifdef __unix__
     struct timespec ts;
 
     #ifndef CLOCK_MONOTONIC
@@ -839,9 +839,15 @@ u64 nanoseconds_since_unspecified_epoch(void) {
     clock_gettime(CLOCK_MONOTONIC, &ts);
 
     return NANOSECONDS_PER_SECOND * ts.tv_sec + ts.tv_nsec;
+#else
+    #error "Sorry, haven't implemented this yet."
 #endif
 }
 
+// https://stackoverflow.com/questions/230062/whats-the-best-way-to-check-if-a-file-exists-in-c
+bool check_if_file_exists(const char *filepath) {
+    return access(filepath, F_OK) == 0;
+}
 
 
 // ===================================================
@@ -1406,9 +1412,10 @@ internal Character_Buffer *String_Builder_Internal_Maybe_Expand_To_Fit(String_Bu
         if (sb->buffer_index % STRING_BUILDER_NUM_BUFFERS == 0) {
             if (!sb->current_segment->next) {
                 if (sb->allocator) {
-                    sb->current_segment->next = Arena_Alloc_Struct(sb->allocator, Segment);
+                    sb->current_segment->next = (Segment*) Arena_Alloc_Struct(sb->allocator, Segment);
                 } else {
-                    sb->current_segment->next = BESTED_MALLOC(sizeof(Segment));
+                    sb->current_segment->next = (Segment*) BESTED_MALLOC(sizeof(Segment));
+                    Mem_Zero(sb->current_segment->next, sizeof(Segment));
                 }
 
                 if (!sb->current_segment->next) {
@@ -1429,9 +1436,10 @@ internal Character_Buffer *String_Builder_Internal_Maybe_Expand_To_Fit(String_Bu
         u64 to_add_size = Max(size, default_size);
 
         if (sb->allocator) {
-            last_buffer->data = Arena_Alloc_Clear(sb->allocator, to_add_size * sizeof(char), true);
+            last_buffer->data = (char*) Arena_Alloc_Clear(sb->allocator, to_add_size * sizeof(char), true);
         } else {
-            last_buffer->data = BESTED_MALLOC(to_add_size * sizeof(char));
+            last_buffer->data = (char*) BESTED_MALLOC(to_add_size * sizeof(char));
+            Mem_Zero(last_buffer->data, to_add_size * sizeof(char));
         }
 
         if (!last_buffer->data) {
@@ -1542,9 +1550,9 @@ String String_Builder_To_String(String_Builder *sb) {
     };
 
     if (sb->allocator) {
-        result.data = Arena_Alloc_Clear(sb->allocator, count+1, false);
+        result.data = (char*) Arena_Alloc_Clear(sb->allocator, count+1, false);
     } else {
-        result.data = BESTED_MALLOC(count+1);
+        result.data = (char*) BESTED_MALLOC(count+1);
     }
 
     if (!result.data) {
@@ -1739,7 +1747,7 @@ void *_Map_Grow(Map_Header *header, void *kv_array, u64 key_size, u64 kv_pair_si
             new_table    = Arena_Alloc_Array(header->allocator, new_table_size, Map_Hash_Entry);
         } else {
             new_kv_array = BESTED_MALLOC(new_capacity * kv_pair_size);
-            new_table    = BESTED_MALLOC(new_table_size * sizeof(Map_Hash_Entry));
+            new_table    = (Map_Hash_Entry*) BESTED_MALLOC(new_table_size * sizeof(Map_Hash_Entry));
         }
 
 
