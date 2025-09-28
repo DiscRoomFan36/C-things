@@ -973,8 +973,6 @@ void Arena_Initialize_First_Page(Arena *arena, u64 first_page_size_in_bytes) {
 
 void Arena_Add_Buffer_As_Storeage_Space(Arena *arena, void *buffer, u64 buffer_size_in_bytes) {
     ARENA_ASSERT(buffer != NULL && "why did you pass this to us.");
-    ARENA_ASSERT(buffer_size_in_bytes >= 0 && "must have positive buffer size");
-
     ARENA_ASSERT(buffer_size_in_bytes > sizeof(Region) && "The passed in buffer must be big enough to contain the Region, preferably much bigger");
 
     u64 real_allocatable_space = buffer_size_in_bytes - sizeof(Region);
