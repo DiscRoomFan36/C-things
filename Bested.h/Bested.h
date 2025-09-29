@@ -4,7 +4,7 @@
 // Author   - Fletcher M
 //
 // Created  - 04/08/25
-// Modified - 25/09/25
+// Modified - 29/09/25
 //
 // Make sure to...
 //      #define BESTED_IMPLEMENTATION
@@ -75,7 +75,8 @@ typedef double          f64;
 
 // I always forget how to call typeof()
 #define Typeof(x)       __typeof__(x)
-#define Alignof(x)      alignof(x)
+// stick the extra Typeof() in there to prevent [-Wgnu-alignof-expression]
+#define Alignof(x)      alignof(Typeof(x))
 
 // I really hate c++ sometimes
 #ifdef __cplusplus
@@ -212,6 +213,20 @@ void *Mem_Set (void *ptr, u8 value, u64 size);
 s32   Mem_Cmp (void *ptr1, void *ptr2, u64 count);
 #define Mem_Eq(ptr1, ptr2, count)   (Mem_Cmp((ptr1), (ptr2), (count)) == 0)
 #define Mem_Zero(ptr, size)         Mem_Set((ptr), 0, (size))
+
+
+#ifndef BESTED_ALIGNED_ALLOC
+    #define BESTED_ALIGNED_ALLOC(align, size)       aligned_alloc((align), (size))
+    #define BESTED_FREE(ptr)                        free(ptr)
+#else
+    #ifndef BESTED_FREE
+        #error "Must Define BESTED_FREE as well as BESTED_ALIGNED_MALLOC"
+    #endif
+#endif // BESTED_ALIGNED_ALLOC
+
+// this is allways based on BESTED_ALLIGNED_ALLOC,
+// but no code will assert if BESTED_ALIGNED_ALLOC dosent return the right allignment.
+#define BESTED_MALLOC(size)                     BESTED_ALIGNED_ALLOC(Alignof(u64), size)
 
 
 
@@ -594,6 +609,18 @@ void Array_Shift(Array_Header *header, void *array, u64 item_size, u64 from_inde
         (a)->count -= (n);                                                                                  \
     } while(0)
 
+// Dose the full swap, so if you add +1 to the count, the item will return.
+#define Array_Swap_And_Remove(array, index)                                 \
+    do {                                                                    \
+        ASSERT(0 <= (index) && (index) < (array)->count);                   \
+        if ((index) != (array)->count-1) {                                  \
+            Typeof(*(array)->items) tmp = (array)->items[(index)];          \
+            (array)->items[(index)] = (array)->items[(array)->count-1];     \
+            (array)->items[(array)->count-1] = tmp;                         \
+        }                                                                   \
+        (array)->count -= 1;                                                \
+    } while (0)
+
 
 // u64 index = it - array->items;
 #define Array_For_Each(type, it, array)                                             \
@@ -753,11 +780,6 @@ String Read_Entire_File(Arena *arena, String filename);
 
 #include <string.h>
 #include <stdarg.h>
-
-
-#define BESTED_ALIGNED_ALLOC(align, size)       aligned_alloc((align), (size))
-#define BESTED_MALLOC(size)                     BESTED_ALIGNED_ALLOC(Alignof(u64), size)
-#define BESTED_FREE(ptr)                        free(ptr)
 
 
 // ===================================================
@@ -1094,7 +1116,7 @@ void Pool_Release(Arena_Pool *pool, Arena *to_release) {
     while (pool) {
         s64 maybe_index = Mem_Ptr_Diff(to_release, pool->arena_pool);
 
-        if (Is_Between(maybe_index, 0, (s64) ((NUM_POOL_ARENAS-1) * sizeof(Arena)))) { 
+        if (Is_Between(maybe_index, 0, (s64) ((NUM_POOL_ARENAS-1) * sizeof(Arena)))) {
             ASSERT(maybe_index % sizeof(Arena) == 0);
             s64 index = maybe_index / sizeof(Arena);
 
