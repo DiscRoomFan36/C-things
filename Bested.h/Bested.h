@@ -78,6 +78,10 @@ typedef double          f64;
 // stick the extra Typeof() in there to prevent [-Wgnu-alignof-expression]
 #define Alignof(x)      alignof(Typeof(x))
 
+// Not wrapping stuff in () because this is purely text based, nothing fancy can be done here.
+#define Member_Size(type, member)   sizeof( ((type*)0)->member )
+
+
 // I really hate c++ sometimes
 #ifdef __cplusplus
     #define ZEROED { /* Imagine there was a zero here */ }
