@@ -75,7 +75,8 @@ typedef double          f64;
 
 // I always forget how to call typeof()
 #define Typeof(x)       __typeof__(x)
-#define Alignof(x)      alignof(x)
+// stick the extra Typeof() in there to prevent [-Wgnu-alignof-expression]
+#define Alignof(x)      alignof(Typeof(x))
 
 // I really hate c++ sometimes
 #ifdef __cplusplus
