@@ -7,12 +7,14 @@ CFLAGS += -Wno-gnu-alignof-expression -Wno-gnu-zero-variadic-macro-arguments
 # CFLAGS += -O2
 # CFLAGS += -Weverything -ferror-limit=0 -Wno-declaration-after-statement -Wno-unsafe-buffer-usage
 
-run: clean arena_test pool_test string_builder_test array_test hashmap_test
+run: all
 	valgrind ./build/arena_test
 	valgrind ./build/pool_test
 	./build/string_builder_test
 	./build/array_test
 	./build/hashmap_test
+
+all: arena_test pool_test string_builder_test array_test hashmap_test
 
 arena_test:                               | build
 	$(CC) $(CFLAGS) -o ./build/arena_test tests/arena_test.c

@@ -214,6 +214,20 @@ s32   Mem_Cmp (void *ptr1, void *ptr2, u64 count);
 #define Mem_Zero(ptr, size)         Mem_Set((ptr), 0, (size))
 
 
+#ifndef BESTED_ALIGNED_ALLOC
+    #define BESTED_ALIGNED_ALLOC(align, size)       aligned_alloc((align), (size))
+    #define BESTED_FREE(ptr)                        free(ptr)
+#else
+    #ifndef BESTED_FREE
+        #error "Must Define BESTED_FREE as well as BESTED_ALIGNED_MALLOC"
+    #endif
+#endif // BESTED_ALIGNED_ALLOC
+
+// this is allways based on BESTED_ALLIGNED_ALLOC,
+// but no code will assert if BESTED_ALIGNED_ALLOC dosent return the right allignment.
+#define BESTED_MALLOC(size)                     BESTED_ALIGNED_ALLOC(Alignof(u64), size)
+
+
 
 // ===================================================
 //                Misc Useful functions
@@ -755,11 +769,6 @@ String Read_Entire_File(Arena *arena, String filename);
 #include <stdarg.h>
 
 
-#define BESTED_ALIGNED_ALLOC(align, size)       aligned_alloc((align), (size))
-#define BESTED_MALLOC(size)                     BESTED_ALIGNED_ALLOC(Alignof(u64), size)
-#define BESTED_FREE(ptr)                        free(ptr)
-
-
 // ===================================================
 //        Useful Memory Manipulation Functions
 // ===================================================
@@ -1094,7 +1103,7 @@ void Pool_Release(Arena_Pool *pool, Arena *to_release) {
     while (pool) {
         s64 maybe_index = Mem_Ptr_Diff(to_release, pool->arena_pool);
 
-        if (Is_Between(maybe_index, 0, (s64) ((NUM_POOL_ARENAS-1) * sizeof(Arena)))) { 
+        if (Is_Between(maybe_index, 0, (s64) ((NUM_POOL_ARENAS-1) * sizeof(Arena)))) {
             ASSERT(maybe_index % sizeof(Arena) == 0);
             s64 index = maybe_index / sizeof(Arena);
 
