@@ -609,6 +609,7 @@ void Array_Shift(Array_Header *header, void *array, u64 item_size, u64 from_inde
         (a)->count -= (n);                                                                                  \
     } while(0)
 
+// Dose the full swap, so if you add +1 to the count, the item will return.
 #define Array_Swap_And_Remove(array, index)                                 \
     do {                                                                    \
         ASSERT(0 <= (index) && (index) < (array)->count);                   \
