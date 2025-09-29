@@ -609,6 +609,17 @@ void Array_Shift(Array_Header *header, void *array, u64 item_size, u64 from_inde
         (a)->count -= (n);                                                                                  \
     } while(0)
 
+#define Array_Swap_And_Remove(array, index)                                 \
+    do {                                                                    \
+        ASSERT(0 <= (index) && (index) < (array)->count);                   \
+        if ((index) != (array)->count-1) {                                  \
+            Typeof(*(array)->items) tmp = (array)->items[(index)];          \
+            (array)->items[(index)] = (array)->items[(array)->count-1];     \
+            (array)->items[(array)->count-1] = tmp;                         \
+        }                                                                   \
+        (array)->count -= 1;                                                \
+    } while (0)
+
 
 // u64 index = it - array->items;
 #define Array_For_Each(type, it, array)                                             \
