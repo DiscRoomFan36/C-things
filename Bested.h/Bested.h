@@ -104,7 +104,7 @@ typedef double          f64;
 
 #define Array_Len(array)            (sizeof(array) / sizeof((array)[0]))
 
-// zero is not a power of 2
+// integers only
 #define Is_Pow_2(n)                 (((n) != 0) && (((n) & ((n)-1)) == 0))
 
 #define Div_Ceil(x, y)      (((x) + (y) - 1) / (y))
@@ -246,29 +246,38 @@ s32   Mem_Cmp (void *ptr1, void *ptr2, u64 count);
 
 #define Atomic(type) _Atomic(type)
 
-// why would you ever need store and load? they dont do anything...
+
+// is it ever the case that a number may not be atomically set?
+#define Atomic_Store(object)        atomic_store(object)
+#define Atomic_Load(object)         atomic_load(object)
 
 // 'object' and 'expected' are pointers. 'desired' is just a value.
 //
-// on success, returns true,  and sets object to desired.
-// on failure, returns false, and sets expected to object.
+// on success, returns true,  and sets object   to desired
+// on failure, returns false, and sets expected to object
 //
 // uses *_strong() because why not. (although *_weak() is faster in a loop apparently)
 #define Atomic_Compare_And_Exchange(object, expected, desired)      atomic_compare_exchange_strong((object), (expected), (desired))
 
 // returns value is was before
-#define Atomic_Exchange(object, operand)    atomic_exchange((object), (operand))
+#define Atomic_Exchange(object, operand)    atomic_exchange(object, operand)
 // returns value is was before
-#define Atomic_Add(object, operand)         atomic_fetch_add((object), (operand))
+#define Atomic_Add(object, operand)         atomic_fetch_add(object, operand)
 // returns value is was before
-#define Atomic_Sub(object, operand)         atomic_fetch_sub((object), (operand))
+#define Atomic_Sub(object, operand)         atomic_fetch_sub(object, operand)
 
 // returns value is was before
-#define Atomic_Or(object, operand)          atomic_fetch_or((object), (operand))
+#define Atomic_Or(object, operand)          atomic_fetch_or(object, operand)
 // returns value is was before
-#define Atomic_Xor(object, operand)         atomic_fetch_xor((object), (operand))
+#define Atomic_Xor(object, operand)         atomic_fetch_xor(object, operand)
 // returns value is was before
-#define Atomic_And(object, operand)         atomic_fetch_and((object), (operand))
+#define Atomic_And(object, operand)         atomic_fetch_and(object, operand)
+
+// A spin loop until the thread can capture the bool:
+//      while (Atomic_Test_And_Set(object));
+#define Atomic_Test_And_Set(object)         Atomic_Exchange(object, true)
+#define Atomic_Clear(object)                Atomic_Store(object, false)
+
 
 
 
@@ -1139,7 +1148,7 @@ void Arena_Free (Arena *arena) {
 Arena *Pool_Get(Arena_Pool *pool) {
     while (true) {
         for (u32 i = 0; i < NUM_POOL_ARENAS; i++) {
-            if (Has_Bit(pool->in_use_flags, i)) continue;
+            if (Has_Bit(Atomic_Load(&pool->in_use_flags), i)) continue;
 
             Pool_Flag_Type before = Atomic_Or(&pool->in_use_flags, Bit(i));
             if (Has_Bit(before, i)) continue; // someone got to it first,
@@ -1167,7 +1176,7 @@ void Pool_Release(Arena_Pool *pool, Arena *to_release) {
             ASSERT(maybe_index % sizeof(Arena) == 0);
             s64 index = maybe_index / sizeof(Arena);
 
-            ASSERT(Has_Bit(pool->in_use_flags, index));
+            ASSERT(Has_Bit( Atomic_Load(&pool->in_use_flags) , index));
             Atomic_Xor(&pool->in_use_flags, Bit(index)); // clear the flag atomically.
             return;
         }
@@ -1422,8 +1431,10 @@ String String_Get_Next_Line(String *parseing, u64 *line_num, String_Get_Next_Lin
 }
 
 
-#define TEMP_SPRINTF_NUM_BUFFERS     64
-#define TEMP_SPRINTF_BUFFER_SIZE    512
+#define TEMP_SPRINTF_NUM_BUFFERS    (1<<6)
+static_assert(Is_Pow_2(TEMP_SPRINTF_NUM_BUFFERS), "for well defined wrapping behaviour");
+
+#define TEMP_SPRINTF_BUFFER_SIZE    512 // pretty sure this number is related to page size...
 
 const char *temp_sprintf(const char *format, ...) {
     local_persist char          buffers[TEMP_SPRINTF_NUM_BUFFERS][TEMP_SPRINTF_BUFFER_SIZE];
