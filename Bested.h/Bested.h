@@ -259,18 +259,13 @@ s32   Mem_Cmp (void *ptr1, void *ptr2, u64 count);
 // uses *_strong() because why not. (although *_weak() is faster in a loop apparently)
 #define Atomic_Compare_And_Exchange(object, expected, desired)      atomic_compare_exchange_strong((object), (expected), (desired))
 
-// returns value is was before
+// all of these return the value they were before
 #define Atomic_Exchange(object, operand)    atomic_exchange(object, operand)
-// returns value is was before
 #define Atomic_Add(object, operand)         atomic_fetch_add(object, operand)
-// returns value is was before
 #define Atomic_Sub(object, operand)         atomic_fetch_sub(object, operand)
 
-// returns value is was before
 #define Atomic_Or(object, operand)          atomic_fetch_or(object, operand)
-// returns value is was before
 #define Atomic_Xor(object, operand)         atomic_fetch_xor(object, operand)
-// returns value is was before
 #define Atomic_And(object, operand)         atomic_fetch_and(object, operand)
 
 // A spin loop until the thread can capture the bool:
