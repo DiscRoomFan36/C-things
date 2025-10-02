@@ -235,6 +235,44 @@ s32   Mem_Cmp (void *ptr1, void *ptr2, u64 count);
 
 
 // ===================================================
+//                      Atomics
+// ===================================================
+
+#ifdef __STDC_NO_ATOMICS__
+    #error "This header uses atomics, could probably hide all the uses under a #define, if it was a problem"
+#endif
+
+#include <stdatomic.h>
+
+#define Atomic(type) _Atomic(type)
+
+// why would you ever need store and load? they dont do anything...
+
+// 'object' and 'expected' are pointers. 'desired' is just a value.
+//
+// on success, returns true,  and sets object to desired.
+// on failure, returns false, and sets expected to object.
+//
+// uses *_strong() because why not. (although *_weak() is faster in a loop apparently)
+#define Atomic_Compare_And_Exchange(object, expected, desired)      atomic_compare_exchange_strong((object), (expected), (desired))
+
+// returns value is was before
+#define Atomic_Exchange(object, operand)    atomic_exchange((object), (operand))
+// returns value is was before
+#define Atomic_Add(object, operand)         atomic_fetch_add((object), (operand))
+// returns value is was before
+#define Atomic_Sub(object, operand)         atomic_fetch_sub((object), (operand))
+
+// returns value is was before
+#define Atomic_Or(object, operand)          atomic_fetch_or((object), (operand))
+// returns value is was before
+#define Atomic_Xor(object, operand)         atomic_fetch_xor((object), (operand))
+// returns value is was before
+#define Atomic_And(object, operand)         atomic_fetch_and((object), (operand))
+
+
+
+// ===================================================
 //                Misc Useful functions
 // ===================================================
 
@@ -359,8 +397,7 @@ typedef u32 Pool_Flag_Type;
 #define NUM_POOL_ARENAS (sizeof(Pool_Flag_Type) * 8)
 
 typedef struct Arena_Pool {
-    // TODO maybe make this atomic?
-    Pool_Flag_Type in_use_flags;
+    Atomic(Pool_Flag_Type) in_use_flags;
 
     Arena arena_pool[NUM_POOL_ARENAS];
 
@@ -368,9 +405,13 @@ typedef struct Arena_Pool {
 } Arena_Pool;
 
 
+// can be done concurrently
 Arena *Pool_Get(Arena_Pool *pool);
+// can be done concurrently, (but two threads cannot release the same pool)
 void Pool_Release(Arena_Pool *pool, Arena *to_release);
 
+// this could do something fuck-y if done when multiple threads are running,
+// but your an idiot to do that.
 void Pool_Free_Arenas(Arena_Pool *pool);
 
 
@@ -1099,7 +1140,9 @@ Arena *Pool_Get(Arena_Pool *pool) {
     while (true) {
         for (u32 i = 0; i < NUM_POOL_ARENAS; i++) {
             if (Has_Bit(pool->in_use_flags, i)) continue;
-            Flag_Set(pool->in_use_flags, Bit(i));
+
+            Pool_Flag_Type before = Atomic_Or(&pool->in_use_flags, Bit(i));
+            if (Has_Bit(before, i)) continue; // someone got to it first,
 
             Arena *new_arena = &pool->arena_pool[i];
             Arena_Clear(new_arena);
@@ -1125,7 +1168,7 @@ void Pool_Release(Arena_Pool *pool, Arena *to_release) {
             s64 index = maybe_index / sizeof(Arena);
 
             ASSERT(Has_Bit(pool->in_use_flags, index));
-            Flag_Clear(pool->in_use_flags, Bit(index));
+            Atomic_Xor(&pool->in_use_flags, Bit(index)); // clear the flag atomically.
             return;
         }
 
@@ -1383,32 +1426,33 @@ String String_Get_Next_Line(String *parseing, u64 *line_num, String_Get_Next_Lin
 #define TEMP_SPRINTF_BUFFER_SIZE    512
 
 const char *temp_sprintf(const char *format, ...) {
-    local_persist char buffers[TEMP_SPRINTF_NUM_BUFFERS][TEMP_SPRINTF_BUFFER_SIZE];
-    local_persist u32  current_buffer_index = 0;
+    local_persist char          buffers[TEMP_SPRINTF_NUM_BUFFERS][TEMP_SPRINTF_BUFFER_SIZE];
+    local_persist Atomic(u32)   current_buffer_index = 0;
 
-    char *buf = buffers[current_buffer_index];
-    current_buffer_index = (current_buffer_index + 1) % TEMP_SPRINTF_NUM_BUFFERS;
+    u32 buffer_index = Atomic_Add(&current_buffer_index, 1);
+    char *buf = buffers[buffer_index % Array_Len(buffers)];
 
     va_list args;
     va_start(args, format);
-        vsnprintf(buf, TEMP_SPRINTF_BUFFER_SIZE, format, args);
+        vsnprintf(buf, sizeof(buffers[0]), format, args);
     va_end(args);
 
     return buf;
 }
 
 String temp_String_sprintf(const char *format, ...) {
-    local_persist char buffers[TEMP_SPRINTF_NUM_BUFFERS][TEMP_SPRINTF_BUFFER_SIZE];
-    local_persist u32  current_buffer_index = 0;
+    local_persist char          buffers[TEMP_SPRINTF_NUM_BUFFERS][TEMP_SPRINTF_BUFFER_SIZE];
+    local_persist Atomic(u32)   current_buffer_index = 0;
 
-    char *buf = buffers[current_buffer_index];
-    current_buffer_index = (current_buffer_index + 1) % TEMP_SPRINTF_NUM_BUFFERS;
+    u32 buffer_index = Atomic_Add(&current_buffer_index, 1);
+    char *buf = buffers[buffer_index % Array_Len(buffers)];
 
     va_list args;
     va_start(args, format);
-        vsnprintf(buf, TEMP_SPRINTF_BUFFER_SIZE, format, args);
+        vsnprintf(buf, sizeof(buffers[0]), format, args);
     va_end(args);
 
+    // could be faster because we know how long it is. but w/e
     return String_From_C_Str(buf);
 }
 
