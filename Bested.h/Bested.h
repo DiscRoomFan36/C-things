@@ -33,9 +33,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include <stddef.h> // for 'offsetof'
+#include <stdalign.h> // for 'alignof'
+
 #include <assert.h> // mainly for static_assert, i define my own ASSERT
 
-#include <stdalign.h> // for 'alignof'
 
 
 
@@ -73,6 +75,10 @@ typedef double          f64;
 //                    Nice Macros
 // ===================================================
 
+// control flow helper, useful to define more of these for more specific cases.
+#define defer_return(res) do { result = (res); goto defer; } while (0)
+
+
 // I always forget how to call typeof()
 #define Typeof(x)       __typeof__(x)
 // stick the extra Typeof() in there to prevent [-Wgnu-alignof-expression]
@@ -80,6 +86,8 @@ typedef double          f64;
 
 // Not wrapping stuff in () because this is purely text based, nothing fancy can be done here.
 #define Member_Size(type, member)   sizeof( ((type*)0)->member )
+
+// offsetof is also here. comes from stddef.h
 
 
 // I really hate c++ sometimes
@@ -139,9 +147,14 @@ typedef double          f64;
 #define BILLION         (1000UL * 1000UL * 1000UL)
 #define TRILLION        (1000UL * 1000UL * 1000UL * 1000UL)
 
-#define MILISECONDS_PER_SECOND      THOUSAND
-#define MICROSECONDS_PER_SECOND     MILLION
-#define NANOSECONDS_PER_SECOND      BILLION
+
+#define MILISECONDS_PER_SECOND          THOUSAND
+#define MICROSECONDS_PER_SECOND         MILLION
+#define NANOSECONDS_PER_SECOND          BILLION
+
+// good for usleep
+#define MILISECONDS_PER_MICROSECOND     (MICROSECONDS_PER_SECOND / MILISECONDS_PER_SECOND)
+
 
 
 
