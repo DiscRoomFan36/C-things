@@ -466,9 +466,15 @@ const char *String_To_C_Str(Arena *arena, String s);
 const char *temp_String_To_C_Str(String s);
 
 
-String  String_Duplicate(Arena *arena, String s, b32 null_terminate);
-// duplicate a String, dose not zero terminate the string.
-#define String_Dup(arena, s) String_Duplicate((arena), (s), false)
+typedef struct {
+    b32 null_terminate;
+} String_Duplicate_Opt;
+
+// if arena == NULL, uses BESTED_MALLOC.
+//
+// by default dose not null_terminate
+#define String_Duplicate(arena, string, ...) _String_Duplicate((arena), (string), (String_Duplicate_Opt){ __VA_ARGS__ })
+String _String_Duplicate(Arena *arena, String s, String_Duplicate_Opt opt);
 
 // in place.
 void    String_To_Upper(String *s);
@@ -1255,7 +1261,7 @@ String String_From_C_Str(const char *str) {
     return result;
 }
 const char *String_To_C_Str(Arena *arena, String s) {
-    return String_Duplicate(arena, s, true).data;
+    return String_Duplicate(arena, s, .null_terminate = true).data;
 }
 
 #define TEMP_STRING_TO_C_STR_NUM_BUFFERS    64
@@ -1276,16 +1282,19 @@ const char *temp_String_To_C_Str(String s) {
 }
 
 
-String String_Duplicate(Arena *arena, String s, b32 null_terminate) {
-    String result = {
-        .data   = (char*) Arena_Alloc(arena, s.length + (null_terminate ? 1 : 0)),
-        .length = s.length,
-    };
+String _String_Duplicate(Arena *arena, String s, String_Duplicate_Opt opt) {
+    String result = { .length = s.length, };
+    u64 alloc_size = s.length + (opt.null_terminate ? 1 : 0);
+    if (arena) {
+        result.data = (char*) Arena_Alloc(arena, alloc_size);
+    } else {
+        result.data = (char*) BESTED_MALLOC(alloc_size);
+    }
     ASSERT(result.data);
     Mem_Copy(result.data, s.data, result.length);
     // dont need this because the Arena_Alloc dose it for us,
     // but this assignment is kinda free. (the branch isn't though)
-    if (null_terminate) result.data[result.length] = 0;
+    if (opt.null_terminate) result.data[result.length] = 0;
     return result;
 }
 
