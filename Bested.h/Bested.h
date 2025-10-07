@@ -261,8 +261,8 @@ s32   Mem_Cmp (void *ptr1, void *ptr2, u64 count);
 
 
 // is it ever the case that a number may not be atomically set?
-#define Atomic_Store(object)        atomic_store(object)
-#define Atomic_Load(object)         atomic_load(object)
+#define Atomic_Store(object, value)         atomic_store(object, value)
+#define Atomic_Load(object)                 atomic_load(object)
 
 // 'object' and 'expected' are pointers. 'desired' is just a value.
 //
@@ -286,6 +286,11 @@ s32   Mem_Cmp (void *ptr1, void *ptr2, u64 count);
 #define Atomic_Test_And_Set(object)         Atomic_Exchange(object, true)
 #define Atomic_Clear(object)                Atomic_Store(object, false)
 
+// capture a lock for the duration of some scope.
+// this is made of 2 statements so dont put it right after an if statment or something...
+//
+// I shouldnt have to say this but NEVER try to escape the scope any other way then the bottom.
+#define Atomic_Capture_Lock(lock) while (Atomic_Test_And_Set(lock)); for (int __lock_macro_holder = 0; __lock_macro_holder == 0; __lock_macro_holder = (Atomic_Clear(lock), 1))
 
 
 
@@ -414,7 +419,8 @@ typedef u32 Pool_Flag_Type;
 #define NUM_POOL_ARENAS (sizeof(Pool_Flag_Type) * 8)
 
 typedef struct Arena_Pool {
-    Atomic(Pool_Flag_Type) in_use_flags;
+    Atomic(Pool_Flag_Type)  in_use_flags;
+    Atomic(b32)             creating_new_pool_in_chain_lock;
 
     Arena arena_pool[NUM_POOL_ARENAS];
 
@@ -1166,11 +1172,14 @@ Arena *Pool_Get(Arena_Pool *pool) {
             return new_arena;
         }
 
-        if (!pool->next_pool) {
-            pool->next_pool = (Arena_Pool*)BESTED_MALLOC(sizeof(Arena_Pool));
-            Mem_Zero(pool->next_pool, sizeof(Arena_Pool));
+        Atomic(b32) *lock = &pool->creating_new_pool_in_chain_lock;
+        Atomic_Capture_Lock(lock) {
+            if (!pool->next_pool) {
+                pool->next_pool = (Arena_Pool*)BESTED_MALLOC(sizeof(Arena_Pool));
+                Mem_Zero(pool->next_pool, sizeof(Arena_Pool));
+            }
+            pool = pool->next_pool;
         }
-        pool = pool->next_pool;
     }
 
     UNREACHABLE();
@@ -1189,7 +1198,10 @@ void Pool_Release(Arena_Pool *pool, Arena *to_release) {
             return;
         }
 
-        pool = pool->next_pool;
+        Atomic(b32) *lock = &pool->creating_new_pool_in_chain_lock;
+        Atomic_Capture_Lock(lock) {
+            pool = pool->next_pool;
+        }
     }
     // Ran out of pools to check, to_release must not be an arena from this pool.
     UNREACHABLE();
