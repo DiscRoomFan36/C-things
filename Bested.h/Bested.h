@@ -84,8 +84,11 @@ typedef double          f64;
 // stick the extra Typeof() in there to prevent [-Wgnu-alignof-expression]
 #define Alignof(x)      alignof(Typeof(x))
 
+
 // Not wrapping stuff in () because this is purely text based, nothing fancy can be done here.
-#define Member_Size(type, member)   sizeof( ((type*)0)->member )
+#define Member(type, member)        ( ((type*)0)->member )
+#define Member_Size(type, member)   sizeof( Member(type, member) )
+
 
 // offsetof is also here. comes from stddef.h
 
@@ -230,6 +233,7 @@ void *Mem_Set (void *ptr, u8 value, u64 size);
 s32   Mem_Cmp (void *ptr1, void *ptr2, u64 count);
 #define Mem_Eq(ptr1, ptr2, count)   (Mem_Cmp((ptr1), (ptr2), (count)) == 0)
 #define Mem_Zero(ptr, size)         Mem_Set((ptr), 0, (size))
+#define Mem_Zero_Struct(x)          Mem_Zero((x), sizeof(*(x)))
 
 
 #ifndef BESTED_ALIGNED_ALLOC
