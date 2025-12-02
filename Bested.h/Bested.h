@@ -973,12 +973,21 @@ internal void Arena_Internal_Free_Region(Region *region) {
 // just some funny casts, and a call to Mem_Set()
 internal inline void *Arena_Internal_Get_New_Memory_At_Last_Region(Arena *arena, u64 size_in_bytes, u64 alignment, b32 clear_to_zero) {
     u64 aligned_ptr_u64 = Mem_Align_Forward(Ptr_To_U64(arena->last->data + arena->last->count_in_bytes), alignment);
+    // u64 aligned_ptr_u64 = Ptr_To_U64(arena->last->data + arena->last->count_in_bytes);
+
     s64 how_far_forward = Mem_Ptr_Diff(U64_To_Ptr(aligned_ptr_u64), arena->last->data + arena->last->count_in_bytes);
     ASSERT(how_far_forward >= 0);
+
+    // lets hope this dosent happen.
+    if (arena->last->count_in_bytes + how_far_forward + size_in_bytes > arena->last->capacity_in_bytes) {
+        return NULL;
+    }
+
 
     if (clear_to_zero) Mem_Zero(U64_To_Ptr(aligned_ptr_u64), size_in_bytes);
 
     arena->last->count_in_bytes += size_in_bytes + (u64) how_far_forward;
+    ASSERT(arena->last->count_in_bytes <= arena->last->capacity_in_bytes);
     return U64_To_Ptr(aligned_ptr_u64);
 }
 
@@ -1006,11 +1015,13 @@ void *_Arena_Alloc(Arena *arena, u64 size_in_bytes, u64 alignment, b32 clear_to_
 
         arena->first = arena->last;
 
-        return Arena_Internal_Get_New_Memory_At_Last_Region(arena, size_in_bytes, alignment, clear_to_zero);
+        void *new_memory = Arena_Internal_Get_New_Memory_At_Last_Region(arena, size_in_bytes, alignment, clear_to_zero);
+        ASSERT(new_memory);
+        return new_memory;
     }
 
     // find room, or find the end
-    while ((arena->last->count_in_bytes + size_in_bytes > arena->last->capacity_in_bytes) && (arena->last->next != NULL)) {
+    while ((arena->last->count_in_bytes + size_in_bytes + alignment > arena->last->capacity_in_bytes) && (arena->last->next != NULL)) {
         arena->last = arena->last->next;
         if (arena->last) {
             // if we just discoverd this, it must be zero'd.
@@ -1019,9 +1030,11 @@ void *_Arena_Alloc(Arena *arena, u64 size_in_bytes, u64 alignment, b32 clear_to_
         }
     }
 
-    if (arena->last->count_in_bytes + size_in_bytes <= arena->last->capacity_in_bytes) {
+    if (arena->last->count_in_bytes + size_in_bytes + alignment <= arena->last->capacity_in_bytes) {
         // if there is space alloc
-        return Arena_Internal_Get_New_Memory_At_Last_Region(arena, size_in_bytes, alignment, clear_to_zero);
+        void *new_memory = Arena_Internal_Get_New_Memory_At_Last_Region(arena, size_in_bytes, alignment, clear_to_zero);
+        ASSERT(new_memory);
+        return new_memory;
 
     } else {
         // we need a new region
@@ -1040,7 +1053,10 @@ void *_Arena_Alloc(Arena *arena, u64 size_in_bytes, u64 alignment, b32 clear_to_
         }
         last_last->next = arena->last;
 
-        return Arena_Internal_Get_New_Memory_At_Last_Region(arena, size_in_bytes, alignment, clear_to_zero);
+
+        void *new_memory = Arena_Internal_Get_New_Memory_At_Last_Region(arena, size_in_bytes, alignment, clear_to_zero);
+        ASSERT(new_memory);
+        return new_memory;
     }
 }
 
