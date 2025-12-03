@@ -642,6 +642,7 @@ void String_Builder_Free(String_Builder *sb);
 //     f32 *items;
 // }
 //
+// we could make this position independent with a union.
 #define _Array_Header_ struct { u64 count; u64 capacity; Arena *allocator; }
 
 typedef _Array_Header_ Array_Header;
@@ -1766,6 +1767,23 @@ void *Array_Grow(Array_Header *header, void *array, u64 item_size, u64 item_alig
 
         void *new_array;
         if (header->allocator) {
+
+            // special case where the last thing to allocate was this current array,
+            // in this case we dont need to do any Mem_Copy, just advance the count_in_bytes.
+            if (header->allocator->last) {
+                bool last_allocation_was_this_array = (header->allocator->last->data + header->allocator->last->count_in_bytes) - (header->count * item_size) == array;
+                if (last_allocation_was_this_array) {
+                    u64 number_of_new_elements = header->capacity - header->count;
+                    u64 new_amount_to_allocate = number_of_new_elements * item_size;
+                    bool new_array_can_fit_into_current_region = header->allocator->last->count_in_bytes + new_amount_to_allocate <= header->allocator->last->capacity_in_bytes;
+
+                    if (new_array_can_fit_into_current_region) {
+                        header->allocator->last->count_in_bytes += new_amount_to_allocate;
+                        goto skip_allocation;
+                    }
+                }
+            }
+
             new_array = _Arena_Alloc(header->allocator, item_size * header->capacity, item_align, false);
             Mem_Copy(new_array, array, item_size * header->count);
         } else {
@@ -1777,6 +1795,7 @@ void *Array_Grow(Array_Header *header, void *array, u64 item_size, u64 item_alig
         array = new_array;
     }
 
+skip_allocation:
     if (clear_to_zero) Mem_Zero(((u8*)array) + (item_size * header->count), item_size * count);
     return array;
 }
