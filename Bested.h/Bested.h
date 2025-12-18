@@ -309,7 +309,7 @@ s32   Mem_Cmp (void *ptr1, void *ptr2, u64 count);
     #define ARENA_PANIC(file, line, reason, ...)                                                            \
         do {                                                                                                \
             fprintf(stderr, "===========================================\n");                               \
-            fprintf(stderr, "%s:%d: ARENA PANIC: \"" reason "\"\n", (file), (line), ##__VA_ARGS__);     \
+            fprintf(stderr, "%s:%d: ARENA PANIC: \"" reason "\"\n", (file), (line), ##__VA_ARGS__);         \
             fprintf(stderr, "===========================================\n");                               \
             abort();                                                                                        \
         } while(0)
