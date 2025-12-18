@@ -5,7 +5,7 @@
 int main(void) {
     Arena a = {0};
 
-    int *seven_ints = Arena_Alloc_Array(&a, 7, int);
+    int *seven_ints = Arena_Alloc(&a, 7 * sizeof(int));
 
     for (int i = 0; i < 7; i++) {
         seven_ints[i] = i*i;

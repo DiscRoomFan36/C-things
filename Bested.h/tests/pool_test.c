@@ -9,7 +9,7 @@ int main(void) {
 
     Arena *arena = Pool_Get(&pool);
 
-    int *seven_ints = Arena_Alloc_Array(arena, 7, int);
+    int *seven_ints = Arena_Alloc(arena, 7 * sizeof(int));
 
     for (size_t i = 0; i < 7; i++) {
         seven_ints[i] = i*i;

@@ -4,6 +4,7 @@ CFLAGS  = -std=gnu11
 CFLAGS += -Wall -Wextra -ggdb -Werror
 CFLAGS += -pedantic -Wno-gnu-statement-expression
 CFLAGS += -Wno-gnu-alignof-expression -Wno-gnu-zero-variadic-macro-arguments
+CFLAGS += -Wno-initializer-overrides
 # CFLAGS += -O2
 # CFLAGS += -Weverything -ferror-limit=0 -Wno-declaration-after-statement -Wno-unsafe-buffer-usage
 

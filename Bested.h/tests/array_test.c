@@ -24,10 +24,10 @@ int main(void) {
     people.allocator = &arena;
 
 
-    Array_Push(&people, ((Person){.name = S("Tim"),  .age = 53, .is_male = true}));
-    Array_Push(&people, ((Person){.name = S("Chad"), .age = 21, .is_male = true}));
-    Array_Push(&people, ((Person){.name = S("Mary"), .age = 43, .is_male = false}));
-    Array_Push(&people, ((Person){.name = S("Ryan"), .age = 11, .is_male = true}));
+    Array_Append(&people, ((Person){.name = S("Tim"),  .age = 53, .is_male = true}));
+    Array_Append(&people, ((Person){.name = S("Chad"), .age = 21, .is_male = true}));
+    Array_Append(&people, ((Person){.name = S("Mary"), .age = 43, .is_male = false}));
+    Array_Append(&people, ((Person){.name = S("Ryan"), .age = 11, .is_male = true}));
 
 
     Array_Reserve(&people, 32);
