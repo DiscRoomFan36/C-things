@@ -309,7 +309,7 @@ s32   Mem_Cmp (void *ptr1, void *ptr2, u64 count);
     #define ARENA_PANIC(file, line, reason, ...)                                                            \
         do {                                                                                                \
             fprintf(stderr, "===========================================\n");                               \
-            fprintf(stderr, "%s:%ld: ARENA PANIC: \"" reason "\"\n", (file), (line), ##__VA_ARGS__);     \
+            fprintf(stderr, "%s:%d: ARENA PANIC: \"" reason "\"\n", (file), (line), ##__VA_ARGS__);     \
             fprintf(stderr, "===========================================\n");                               \
             abort();                                                                                        \
         } while(0)
@@ -393,7 +393,7 @@ typedef struct {
 
 
 // Allocate some memory in a arena, uses macro tricks to give you more options.
-void *_Arena_Alloc(Arena *arena, u64 size_in_bytes, Arena_Alloc_Opt opt, const char *file, s64 line);
+void *_Arena_Alloc(Arena *arena, u64 size_in_bytes, Arena_Alloc_Opt opt, const char *file, s32 line);
 
 #define Arena_Alloc(arena, size, ...)      _Arena_Alloc((arena), (size), (Arena_Alloc_Opt){.alignment = Default_Alignment, .clear_to_zero = true, __VA_ARGS__ }, __FILE__, __LINE__)
 #define Arena_Alloc_Struct(arena, type, ...)                         (type *)Arena_Alloc((arena), sizeof(type), .alignment = Alignof(type), ##__VA_ARGS__)
@@ -410,14 +410,14 @@ void Arena_Set_To_Mark(Arena *arena, Arena_Mark mark);
 // Will do nothing if the first page is already created.
 //
 // If 'first_page_size_in_bytes' is set to 0, the default is used, see 'minimum_allocation_size' comment above.
-void _Arena_Initialize_First_Page(Arena *arena, u64 first_page_size_in_bytes, const char *file, s64 line);
+void _Arena_Initialize_First_Page(Arena *arena, u64 first_page_size_in_bytes, const char *file, s32 line);
 #define Arena_Initialize_First_Page(arena, first_page_size_in_bytes)        \
     _Arena_Initialize_First_Page((arena), (first_page_size_in_bytes), __FILE__, __LINE__);
 
 
 // Care has been taken, so that when Arena_free is called,
 // the pointer to the buffer provided here will not be free'd.
-void _Arena_Add_Buffer_As_Storeage_Space(Arena *arena, void *buffer, u64 buffer_size_in_bytes, const char *file, s64 line);
+void _Arena_Add_Buffer_As_Storeage_Space(Arena *arena, void *buffer, u64 buffer_size_in_bytes, const char *file, s32 line);
 
 #define Arena_Add_Buffer_As_Storeage_Space(arena, buffer, buffer_size_in_bytes)     \
     _Arena_Add_Buffer_As_Storeage_Space((arena), (buffer), (buffer_size_in_bytes), __FILE__, __LINE__)
@@ -663,7 +663,7 @@ void String_Builder_Free(String_Builder *sb);
 #define _Array_Header_ struct { u64 count; u64 capacity; Arena *allocator; }
 
 typedef _Array_Header_ Array_Header;
-void *Array_Grow(Array_Header *header, void *array, u64 item_size, u64 item_align, u64 count, b32 clear_to_zero);
+void *Array_Grow(Array_Header *header, void *array, u64 item_size, u64 item_align, u64 count, b32 clear_to_zero, const char *file, s32 line);
 void Array_Shift(Array_Header *header, void *array, u64 item_size, u64 from_index);
 
 #define Array_Header_Cast(a)    ((Array_Header*)(a))
@@ -671,31 +671,31 @@ void Array_Shift(Array_Header *header, void *array, u64 item_size, u64 from_inde
 #define Array_Item_Align(a)     Alignof(*(a)->items)
 
 // add a single value
-#define Array_Append(a, value)                                                                                                                  \
-    (*((void **)&(a)->items) = Array_Grow(Array_Header_Cast(a), (a)->items, Array_Item_Size(a), Array_Item_Align(a), (a)->count + 1, false),    \
+#define Array_Append(a, value)                                                                                                                                      \
+    (*((void **)&(a)->items) = Array_Grow(Array_Header_Cast(a), (a)->items, Array_Item_Size(a), Array_Item_Align(a), (a)->count + 1, false, __FILE__, __LINE__),    \
     (a)->items[(a)->count++] = (value))
 
 // add 'n' unzero'd items, returns a pointer to the first element
-#define Array_Add(a, n)                                                                                                                         \
-    (*((void **)&(a)->items) = Array_Grow(Array_Header_Cast(a), (a)->items, Array_Item_Size(a), Array_Item_Align(a), (a)->count + (n), false),  \
-    (a)->count += (n),                                                                                                                          \
+#define Array_Add(a, n)                                                                                                                                             \
+    (*((void **)&(a)->items) = Array_Grow(Array_Header_Cast(a), (a)->items, Array_Item_Size(a), Array_Item_Align(a), (a)->count + (n), false, __FILE__, __LINE__),  \
+    (a)->count += (n),                                                                                                                                              \
     &(a)->items[(a)->count - (n)])
 
 
 // Add 'n' zero'd items to the back of the list
-#define Array_Add_Clear(a, n)                                                                                                                   \
-    (*((void **)&(a)->items) = Array_Grow(Array_Header_Cast(a), (a)->items, Array_Item_Size(a), Array_Item_Align(a), (a)->count + (n), true),   \
-    (a)->count += (n),                                                                                                                          \
+#define Array_Add_Clear(a, n)                                                                                                                                       \
+    (*((void **)&(a)->items) = Array_Grow(Array_Header_Cast(a), (a)->items, Array_Item_Size(a), Array_Item_Align(a), (a)->count + (n), true, __FILE__, __LINE__),   \
+    (a)->count += (n),                                                                                                                                              \
     &(a)->items[(a)->count - (n)])
 
 // make sure there is enough room to hold 'n' items, dose not increase count.
-#define Array_Reserve(a, n)                                                                                             \
-    (*((void **)&(a)->items) = Array_Grow(Array_Header_Cast(a), (a)->items, Array_Item_Size(a), Array_Item_Align(a), (n), false))
+#define Array_Reserve(a, n)                                                                                                                             \
+    (*((void **)&(a)->items) = Array_Grow(Array_Header_Cast(a), (a)->items, Array_Item_Size(a), Array_Item_Align(a), (n), false, __FILE__, __LINE__))
 
-#define Array_Insert(a, i, value)                                                                                                               \
-    (*((void **)&(a)->items) = Array_Grow(Array_Header_Cast(a), (a)->items, Array_Item_Size(a), Array_Item_Align(a), (a)->count + 1, false),    \
-    Mem_Move((a)->items + (i), (a)->items + i - 1, ((a)->count - (i)) * Array_Item_Size(a)),                                                    \
-    (a)->items[(i)] = (value),                                                                                                                  \
+#define Array_Insert(a, i, value)                                                                                                                                   \
+    (*((void **)&(a)->items) = Array_Grow(Array_Header_Cast(a), (a)->items, Array_Item_Size(a), Array_Item_Align(a), (a)->count + 1, false, __FILE__, __LINE__),    \
+    Mem_Move((a)->items + (i), (a)->items + i - 1, ((a)->count - (i)) * Array_Item_Size(a)),                                                                        \
+    (a)->items[(i)] = (value),                                                                                                                                      \
     (a)->count += 1)
 
 #define Array_Remove(a, i, n)                                                                               \
@@ -1037,7 +1037,7 @@ internal inline void *Arena_Internal_Get_New_Memory_At_Last_Region(Arena *arena,
 }
 
 
-void *_Arena_Alloc(Arena *arena, u64 size_in_bytes, Arena_Alloc_Opt opt, const char *file, s64 line) {
+void *_Arena_Alloc(Arena *arena, u64 size_in_bytes, Arena_Alloc_Opt opt, const char *file, s32 line) {
     // TODO track allocations.
 
     u64 default_size = (arena->minimum_allocation_size != 0) ? arena->minimum_allocation_size : ARENA_REGION_DEFAULT_CAPACITY;
@@ -1140,7 +1140,7 @@ void Arena_Set_To_Mark(Arena *arena, Arena_Mark mark) {
 }
 
 
-void _Arena_Initialize_First_Page(Arena *arena, u64 first_page_size_in_bytes, const char *file, s64 line) {
+void _Arena_Initialize_First_Page(Arena *arena, u64 first_page_size_in_bytes, const char *file, s32 line) {
     if (arena->first != NULL) return;
 
     u64 tmp_min_alloc_size = arena->minimum_allocation_size;
@@ -1156,7 +1156,7 @@ void _Arena_Initialize_First_Page(Arena *arena, u64 first_page_size_in_bytes, co
 }
 
 
-void _Arena_Add_Buffer_As_Storeage_Space(Arena *arena, void *buffer, u64 buffer_size_in_bytes, const char *file, s64 line) {
+void _Arena_Add_Buffer_As_Storeage_Space(Arena *arena, void *buffer, u64 buffer_size_in_bytes, const char *file, s32 line) {
     if (buffer == NULL) {
         ARENA_PANIC(file, line, "Arena_Add_Buffer_As_Storeage_Space: buffer != NULL, why did you pass this to us.");
         return;
@@ -1207,7 +1207,7 @@ const char *Arena_sprintf(Arena *arena, const char *format, ...) {
 
     if (formatted_size < 0) {
         // TODO ? accept file and line here? i never use this function anyway...
-        ARENA_PANIC(__FILE__, (s64)__LINE__, "Arena_sprintf: format was not successful");
+        ARENA_PANIC(__FILE__, __LINE__, "Arena_sprintf: format was not successful");
         return NULL;
     }
 
@@ -1857,7 +1857,7 @@ void String_Builder_Free(String_Builder *sb) {
 //                Dynamic Arrays
 // ===================================================
 
-void *Array_Grow(Array_Header *header, void *array, u64 item_size, u64 item_align, u64 count, b32 clear_to_zero) {
+void *Array_Grow(Array_Header *header, void *array, u64 item_size, u64 item_align, u64 count, b32 clear_to_zero, const char *file, s32 line) {
     if (count > header->capacity) {
         header->capacity = header->capacity ? header->capacity * 2 : ARRAY_INITAL_CAPACITY;
         while (header->capacity < count) header->capacity *= 2;
@@ -1881,9 +1881,13 @@ void *Array_Grow(Array_Header *header, void *array, u64 item_size, u64 item_alig
                 }
             }
 
+            void *_Arena_Alloc(Arena *arena, u64 size_in_bytes, Arena_Alloc_Opt opt, const char *file, s32 line);
 
-            new_array = Arena_Alloc(header->allocator, item_size * header->capacity, .alignment = item_align, .clear_to_zero = false);
-            // new_array = _Arena_Alloc(header->allocator, item_size * header->capacity, item_align, false);
+            new_array = _Arena_Alloc(
+                header->allocator, item_size * header->capacity,
+                (Arena_Alloc_Opt){.alignment = item_align, .clear_to_zero = false, },
+                file, line
+            );
             Mem_Copy(new_array, array, item_size * header->count);
         } else {
             new_array = BESTED_ALIGNED_ALLOC(item_align, item_size * header->capacity);
