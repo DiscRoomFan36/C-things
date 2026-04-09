@@ -55,6 +55,7 @@ typedef int32_t         s32;
 typedef int16_t         s16;
 typedef int8_t          s8;
 
+// fixed width bool types, might be useful, but probably not.
 typedef u64             b64;
 typedef u32             b32;
 typedef u16             b16;
