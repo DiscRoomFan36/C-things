@@ -25,6 +25,20 @@ int main(void) {
 }
 ```
 
+### Recommended Compiler Flags:
+
+```c
+// the normal ones
+-Wall -Wextra -ggdb
+// these ones are so it doesn't yell at you because of my weird macro tricks
+-Wno-gnu-statement-expression -Wno-gnu-alignof-expression
+-Wno-gnu-zero-variadic-macro-arguments -Wno-initializer-overrides
+
+// all in one line
+-Wall -Wextra -ggdb -Wno-gnu-statement-expression -Wno-gnu-alignof-expression -Wno-gnu-zero-variadic-macro-arguments -Wno-initializer-overrides
+```
+
+
 ## Notable Features:
 
 ### The ZEROED macro, for some context in further code snippets.
