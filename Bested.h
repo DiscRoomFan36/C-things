@@ -463,6 +463,8 @@ void Pool_Release(Arena_Pool *pool, Arena *to_release);
 
 // this could do something fuck-y if done when multiple threads are running,
 // but your an idiot to do that.
+//
+// also releases all pools.
 void Pool_Free_Arenas(Arena_Pool *pool);
 
 
@@ -1354,6 +1356,9 @@ void Pool_Free_Arenas(Arena_Pool *pool) {
         BESTED_FREE(pool);
         pool = next_pool;
     }
+
+    // clear all the flags.
+    pool->in_use_flags = 0;
 }
 
 
