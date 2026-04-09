@@ -181,6 +181,8 @@ typedef double          f64;
 //         assert and aborting functions
 // ===================================================
 
+// this is probably not that good. kinda just a worse assert(),
+// since i dont know how to get the pretty function text.
 #define ASSERT(expr) do { if (!(expr)) {                                                    \
         fprintf(stderr, "===========================================\n");                   \
         fprintf(stderr, "%s:%d: ASSERTION ERROR: \"%s\"\n", __FILE__, __LINE__, #expr);     \
