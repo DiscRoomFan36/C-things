@@ -882,6 +882,10 @@ bool check_if_file_exists(const char *filepath);
 //                 Debug Helpers
 // ===================================================
 
+// extremely annoyed that we have to pass pointers in here.
+//
+// _Generic() is just terrible.
+
 const char *print_s64   (void *_x);
 const char *print_u64   (void *_x);
 
