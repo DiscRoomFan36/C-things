@@ -17,6 +17,12 @@ Just remember to #define the implementation somewhere.
 ```c
 #define BESTED_IMPLEMENTATION
 #include "Bested.h"
+
+int main(void) {
+    const char *c_str = temp_sprintf("It Works! %d", 69502);
+    printf("%s\n", c_str);
+    return 0;
+}
 ```
 
 ## Notable Features:
@@ -174,7 +180,104 @@ foo_array.allocator = Pool_Get(&pool);
 
 ### String & String_Builder
 
-*TODO explain*
+#### String
+
+Do you like C's strings?
+
+Of course you don't!
+
+```c
+typedef struct {
+    char *data;
+    u64 length;
+} String;
+
+// S() is a helper macro, turn a 'const char *' into a String
+String my_string = S("Hello World");
+
+// printing helpers
+printf("my_string: "S_Fmt"\n", S_Arg(my_string));
+
+const char *c_string = String_To_C_Str(&arena, my_string);
+// useful to pass into fopen() and other c std functions.
+const char *c_string = temp_String_To_C_Str(my_string);
+
+String dup_string = String_Duplicate(&arena, my_string, .null_terminate = true);
+
+// in place, don't know why i have this function...
+String_To_Upper(my_string);
+
+b32 result = String_Eq(my_string, S("Hello World"));
+b32 result = String_Starts_With(my_string, S("Hello"));
+b32 result = String_Ends_With  (my_string, S("World"));
+
+b32 result = String_Contains_Char(my_string, " ");
+
+// returns -1 on failure.
+s64 index  = String_Find_Index_Of_Char(my_string, " ");
+// String version
+s64 index  = String_Find_Index_Of(my_string, S("World"));
+
+// moves the string forwards,
+// no bounds checking is done here.
+String_Advance(&my_string, 1);
+String next_string = String_Advanced(my_string, 1);
+
+// gets the next line of of a string, times whitespace, skips empty lines.
+String line = String_Get_Next_Line(&file_text, &line_num, SGNL_Trim | SGNL_Skip_Empty)
+
+
+// this function should get its own section.
+const char *words       = temp_sprintf("there are %d leaves\n", 69502);
+String words_but_string = temp_String_sprintf("there are %d leaves\n", 69502);
+```
+
+#### String_Builder
+
+Efficient for medium to large strings.
+
+(aka it always dose at least 1 allocation when adding any data.)
+
+```c
+// zero initialized
+String_Builder sb = ZEROED;
+// works the same as the dynamic arrays.
+sb.allocator = Pool_Get(&pool);
+
+// something you can set to change how much
+// it allocates when needing a new buffer.
+//
+// (4 * KILOBYTE) is the default.
+sb.base_new_allocation = (4 * KILOBYTE);
+
+// how much data is in here.
+//
+// also NOTE, string builder is passed by pointer into most things.
+u64 count = String_Builder_Count(&sb);
+
+String_Builder_Ptr_And_Size(&sb, ptr, size);
+String_Builder_String(&sb, string);
+u64 num_printed = String_Builder_printf(&sb, "Hello %s", "world");
+
+String_Builder_Struct_Bytes(&sb, struct_ptr);
+String_Builder_Array_Bytes(&sb, foo_array.items, foo_array.count);
+
+// returns a null terminated string.
+String result = String_Builder_To_String(&sb);
+
+{ // dose not null terminate the file
+    FILE *file = fopen("output.txt", "wb");
+    String_Builder_To_File(&sb, file);
+    fclose(file);
+}
+
+
+// clears the buffers, dose not remove memory, like Arena_Clear();
+String_Builder_Clear(&sb);
+
+// only call this if not using an allocator.
+String_Builder_Free(&sb);
+```
 
 
 
