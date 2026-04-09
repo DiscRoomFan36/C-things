@@ -96,8 +96,13 @@ typedef double          f64;
 
 // I really hate c++ sometimes
 #ifdef __cplusplus
+    // this allows c++ to do value initialization,
+    // witch is spiritually the same thing.
+    //
+    // also c++ complains if there is only 1 zero.
     #define ZEROED { /* Imagine there was a zero here */ }
 #else
+    // pretty sure this zero is necessary in C
     #define ZEROED {0}
 #endif
 
