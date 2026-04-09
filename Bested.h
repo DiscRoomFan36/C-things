@@ -871,8 +871,8 @@ typedef struct {
 } String_Array;
 
 
-
-String Read_Entire_File(Arena *arena, String filename);
+// will return malloc'd string if arena is NULL,
+String Read_Entire_File(String filename, Arena *arena);
 
 // only works on unix.
 u64 nanoseconds_since_unspecified_epoch(void);
@@ -2070,14 +2070,16 @@ void *_Map_Put(Map_Header *header, void *kv_array, void *key, u64 key_size, void
 //             Some Common Functions
 // ===================================================
 
-String Read_Entire_File(Arena *arena, String filename) {
-    // this might init a page that is to small to contain the file.
-    // But I work with Strings now. not c_strings
-    Arena_Mark mark = Arena_Get_Mark(arena);
-        FILE *file = fopen(String_To_C_Str(arena, filename), "rb");
-    Arena_Set_To_Mark(arena, mark);
-
+String Read_Entire_File(String filename, Arena *arena) {
     String result = ZEROED;
+
+    // pretty sure PATHMAX is less than TEMP_STRING_TO_C_STR_MAX_LENGTH
+    if (filename.length < TEMP_STRING_TO_C_STR_MAX_LENGTH) {
+        fprintf(stderr, "filename length is bigger than temp_String_To_C_Str() storage, was %zu, witch is probably bigger than PATH_MAX on a lot of OS's", filename.length);
+        return result;
+    }
+
+    FILE *file = fopen(temp_String_To_C_Str(filename), "rb");
 
     if (file) {
         fseek(file, 0, SEEK_END);
@@ -2086,7 +2088,11 @@ String Read_Entire_File(Arena *arena, String filename) {
 
         if (length >= 0) {
             result.length = (u64)length;
-            result.data = (char*) Arena_Alloc(arena, result.length+1, .clear_to_zero = false);
+            if (arena) {
+                result.data = (char*) Arena_Alloc(arena, result.length+1, .clear_to_zero = false);
+            } else {
+                result.data = BESTED_MALLOC(result.length+1);
+            }
             // result.data = (char*) Arena_Alloc_Clear(arena, result.length+1, false);
             if (result.data) {
                 u64 read_bytes = fread(result.data, 1, result.length, file);
