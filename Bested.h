@@ -425,10 +425,10 @@ void _Arena_Initialize_First_Page(Arena *arena, u64 first_page_size_in_bytes, co
 
 // Care has been taken, so that when Arena_free is called,
 // the pointer to the buffer provided here will not be free'd.
-void _Arena_Add_Buffer_As_Storeage_Space(Arena *arena, void *buffer, u64 buffer_size_in_bytes, const char *file, s32 line);
+void _Arena_Add_Buffer_As_Storage_Space(Arena *arena, void *buffer, u64 buffer_size_in_bytes, const char *file, s32 line);
 
-#define Arena_Add_Buffer_As_Storeage_Space(arena, buffer, buffer_size_in_bytes)     \
-    _Arena_Add_Buffer_As_Storeage_Space((arena), (buffer), (buffer_size_in_bytes), __FILE__, __LINE__)
+#define Arena_Add_Buffer_As_Storage_Space(arena, buffer, buffer_size_in_bytes)     \
+    _Arena_Add_Buffer_As_Storage_Space((arena), (buffer), (buffer_size_in_bytes), __FILE__, __LINE__)
 
 
 // sprintf useing the arena as a buffer.
@@ -1168,7 +1168,7 @@ void _Arena_Initialize_First_Page(Arena *arena, u64 first_page_size_in_bytes, co
 }
 
 
-void _Arena_Add_Buffer_As_Storeage_Space(Arena *arena, void *buffer, u64 buffer_size_in_bytes, const char *file, s32 line) {
+void _Arena_Add_Buffer_As_Storage_Space(Arena *arena, void *buffer, u64 buffer_size_in_bytes, const char *file, s32 line) {
     if (buffer == NULL) {
         ARENA_PANIC(file, line, "Arena_Add_Buffer_As_Storeage_Space: buffer != NULL, why did you pass this to us.");
         return;
