@@ -325,30 +325,122 @@ Also stdbool.h is included as well. so you don't need to #include that yourself.
 
 ### Nice Macro's
 
-although Clamp dose collide with raylib's clamp.
+NOTE: Clamp() Macro collides with raylib's clamp.
 
-*TODO explain*
 
+```c
+
+// I always forget how to call typeof()
+#define Typeof(x)       __typeof__(x)
+// stick the extra Typeof() in there to prevent [-Wgnu-alignof-expression]
+#define Alignof(x)      alignof(Typeof(x))
+
+
+// Not wrapping stuff in () because this is purely text based, nothing fancy can be done here.
+#define Member(type, member)        ( ((type*)0)->member )
+#define Member_Size(type, member)   sizeof( Member(type, member) )
+
+// offsetof is also here. comes from stddef.h
+
+
+
+#define Min(a, b)   ({ Typeof(a) _a = (a); Typeof(b) _b = (b); _a < _b ? _a : _b; })
+#define Max(a, b)   ({ Typeof(a) _a = (a); Typeof(b) _b = (b); _a > _b ? _a : _b; })
+
+#define Sign(T, x)  ((T)((x) > 0) - (T)((x) < 0))
+#define Abs(x)      (Sign(Typeof(x), (x)) * (x))
+
+// TODO this has the same problem as Min & Max
+#define Clamp(x, min, max)              ((x) < (min) ? (min) : (((x) > (max)) ? (max) : (x)))
+
+#define Is_Between(x, lower, upper)     (((lower) <= (x)) && ((x) <= (upper)))
+
+
+#define Array_Len(array)            (sizeof(array) / sizeof((array)[0]))
+
+// integers only
+#define Is_Pow_2(n)                 (((n) != 0) && (((n) & ((n)-1)) == 0))
+
+#define Div_Ceil(x, y)      (((x) + (y) - 1) / (y))
+#define Div_Floor(x, y)     ((x) / (y))
+
+
+
+// also there is:
+
+// these have printf() formatting
+PANIC("cannot happen size should not be negative, was %d", size);
+TODO("finish this");
+
+// this accepts no arguments
+UNREACHABLE();
+
+```
 
 ### Nice #defines
 
-*TODO explain*
+```c
+#define PI              3.1415926535897932384626433
+#define TAU             6.283185307179586476925286766559
+#define E               2.718281828459045235360287471352
+#define ROOT_2          1.414213562373095048801688724209
+
+#define KILOBYTE        (1024UL)
+#define MEGABYTE        (1024UL * 1024UL)
+#define GIGABYTE        (1024UL * 1024UL * 1024UL)
+#define TERABYTE        (1024UL * 1024UL * 1024UL * 1024UL)
+
+#define THOUSAND        (1000UL)
+#define MILLION         (1000UL * 1000UL)
+#define BILLION         (1000UL * 1000UL * 1000UL)
+#define TRILLION        (1000UL * 1000UL * 1000UL * 1000UL)
+
+
+#define MILISECONDS_PER_SECOND          THOUSAND
+#define MICROSECONDS_PER_SECOND         MILLION
+#define NANOSECONDS_PER_SECOND          BILLION
+
+// good for usleep
+#define MILISECONDS_PER_MICROSECOND     (MICROSECONDS_PER_SECOND / MILISECONDS_PER_SECOND)
+
+
+
+// ===================================================
+//         What static really means
+// ===================================================
+
+// Mark a function that must be used in the current compilation block and cannot be seen outside of it.
+#define internal            static
+// mark a variable inside of a function that persists though function calls.
+#define local_persist       static
+// casey once said that all this dose is help the compiler deal with
+// multithreaded code, by forceing the functions to not store the
+// value of the variable into their own registers.
+#define global_variable     static
+```
 
 
 ### Just Some Nice Functions
 
-Read_Entire_File()
+```c
+String file = Read_Entire_File("input.txt", NULL);
 
-nanoseconds_since_unspecified_epoch()
+u64 time_start = nanoseconds_since_unspecified_epoch();
 
-debug()
+// debugs a variable
+debug(time_start);
+// prints "DEBUG: time_start = {NUMBER}"
 
+// puts a common interrupt instruction.
+//
+// asm("int3");
 debug_break()
-
-*TODO*
+```
 
 
 ## TODO
 
+- better time manipulation functions.
+- get that print_running() function from sudoku project
 - Finish the hashmap implementation.
 - replace *_test.c files with a TESTMA.h, file.
