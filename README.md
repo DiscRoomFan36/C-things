@@ -114,7 +114,63 @@ If only there was some kind of construct that could allocate many items at once?
 
 ### Dynamic Arrays, with settable allocators.
 
-*TODO explain*
+```c
+typedef struct {
+    s32 bar;
+} Foo;
+
+typedef struct {
+    _Array_Header_;
+    Foo *items;
+} Foo_Array;
+
+// arrays are zero initialized. and can be used in this state.
+//
+// all memory is malloc()'d, (or BESTED_MALLOC()'d in this case)
+Foo_Array foo_array = ZEROED;
+
+// but here is the real magic,
+//
+// now you can make as many arrays as you want,
+// no need to think about the memory.
+foo_array.allocator = Pool_Get(&pool);
+
+// foo_array is now a regular array, you can:
+{
+    // access an element
+    foo_array.items[i];
+
+    // get the count
+    foo_array.count;
+
+    Array_Append(&foo_array, item);
+    Array_Insert(&foo_array, index, item);
+
+    Array_Reserve(&foo_array, num_to_reserve);
+
+    // remove and move.
+    Array_Remove(&foo_array, index)
+    // the cooler remove
+    Array_Swap_And_Remove(&foo_array, 3);
+
+    // iteration helper.
+    Array_For_Each(Foo, it, &foo_array) {
+        u64 index = it - foo_array.items;
+        printf("%zu: %d\n", index, it.bar);
+    }
+    // or do it yourself.
+    for (u64 i = 0; i < foo_array.count; i++) {
+        Foo *foo = foo_array.items[i];
+    }
+
+    // if you didn't set an allocator. will crash program
+    // if you didn't set an allocator and call this.
+    Array_Free(&foo_array);
+    // or if you did set an allocator:
+    Pool_Release(&pool, foo_array.allocator);
+}
+```
+
 
 ### String & String_Builder
 
