@@ -2097,7 +2097,7 @@ String Read_Entire_File(Arena *arena, String filename) {
 
 
 #ifdef _WIN32
-    #error "We dont support windows currently, or at least not this one function. just delete it if you need to use the rest of this library"
+    #warning "We dont support windows currently, or at least not nanoseconds_since_unspecified_epoch(), returns a dummy value."
 #else
     #include <unistd.h>
     #include <time.h>
@@ -2119,7 +2119,8 @@ u64 nanoseconds_since_unspecified_epoch(void) {
 
     return NANOSECONDS_PER_SECOND * ts.tv_sec + ts.tv_nsec;
 #else
-    #error "Sorry, haven't implemented this yet."
+    #warning "We dont support windows currently, or at least not nanoseconds_since_unspecified_epoch(), returns a dummy value."
+    return 538008;
 #endif
 }
 
