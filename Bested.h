@@ -661,6 +661,10 @@ void String_Builder_Free(String_Builder *sb);
     #define ARRAY_INITAL_CAPACITY       32
 #endif
 
+// what the array header contains, this is an implementation detail.
+#define _Array_Header_items struct { u64 count; u64 capacity; Arena *allocator; }
+typedef _Array_Header_items Array_Header;
+
 //
 // Example Array:
 //
@@ -669,14 +673,19 @@ void String_Builder_Free(String_Builder *sb);
 //     f32 *items;
 // }
 //
-// we could make this position independent with a union.
-#define _Array_Header_ struct { u64 count; u64 capacity; Arena *allocator; }
+// union is to make this struct position independent.
+#define _Array_Header_                      \
+    union {                                 \
+        _Array_Header_items;                \
+        Array_Header array_header;          \
+    }
 
-typedef _Array_Header_ Array_Header;
 void *Array_Grow(Array_Header *header, void *array, u64 item_size, u64 item_align, u64 count, b32 clear_to_zero, const char *file, s32 line);
 void Array_Shift(Array_Header *header, void *array, u64 item_size, u64 from_index);
 
-#define Array_Header_Cast(a)    ((Array_Header*)(a))
+
+#define Array_Header_Cast(a)    (&(a)->array_header)
+
 #define Array_Item_Size(a)      sizeof(*(a)->items)
 #define Array_Item_Align(a)     Alignof(*(a)->items)
 
