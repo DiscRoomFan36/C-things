@@ -11,10 +11,7 @@ typedef struct {
     b32 is_male;
 } Person;
 
-typedef struct {
-    _Array_Header_;
-    Person *items;
-} Person_Array;
+typedef Array(Person) Person_Array;
 
 Arena arena = ZEROED;
 

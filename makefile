@@ -11,6 +11,7 @@ CFLAGS += -Wno-initializer-overrides
 run: all
 	valgrind ./build/arena_test
 	valgrind ./build/pool_test
+# 	these rely on the arena and pool, don't need to valgrind them
 	./build/string_builder_test
 	./build/array_test
 	./build/hashmap_test

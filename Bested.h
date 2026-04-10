@@ -446,6 +446,11 @@ void Arena_Free (Arena *arena);
 typedef u32 Pool_Flag_Type;
 #define NUM_POOL_ARENAS (sizeof(Pool_Flag_Type) * 8)
 
+//
+// TODO this struct should have default arena settings,
+// but how would this work if you wanted
+// to give different arena's different settings?
+//
 typedef struct Arena_Pool {
     Atomic(Pool_Flag_Type)  in_use_flags;
     Atomic(b32)             creating_new_pool_in_chain_lock;
@@ -662,22 +667,30 @@ void String_Builder_Free(String_Builder *sb);
 #endif
 
 // what the array header contains, this is an implementation detail.
-#define _Array_Header_items struct { u64 count; u64 capacity; Arena *allocator; }
-typedef _Array_Header_items Array_Header;
+#define Array_Header_Items struct { u64 count; u64 capacity; Arena *allocator; }
+typedef Array_Header_Items Array_Header;
 
 //
-// Example Array:
+// Example:
+//   - make a variable
+//      Array(Foo) foo_array;
 //
-// struct float_Array {
-//     _Array_Header_;
-//     f32 *items;
-// }
+//   - make a type
+//      typedef Array(Bar) Bar_Array;
 //
-// union is to make this struct position independent.
-#define _Array_Header_                      \
-    union {                                 \
-        _Array_Header_items;                \
-        Array_Header array_header;          \
+//   foo_array.count     = /* number of items in array */
+//   foo_array.items     = /* the array pointer */
+//   foo_array.capacity  = /* the capacity */
+//   foo_array.allocator = /* a settable arena allocator */
+//
+#define Array(Type)                         \
+    struct {                                \
+        Type *items;                        \
+        /* this union makes implementation details less jank.*/     \
+        union {                             \
+            Array_Header_Items;             \
+            Array_Header array_header;      \
+        };                                  \
     }
 
 void *Array_Grow(Array_Header *header, void *array, u64 item_size, u64 item_align, u64 count, b32 clear_to_zero, const char *file, s32 line);
@@ -880,11 +893,9 @@ void *_Map_Put                          (Map_Header *header, void *kv_array, voi
 //                      Misc
 // ===================================================
 
-// this is just useful
-typedef struct {
-    _Array_Header_;
-    String *items;
-} String_Array;
+// these are just useful, dont have to make these every single project.
+typedef Array(String) String_Array;
+typedef Array(s64)    Int_Array;
 
 
 // will return malloc'd string if arena is NULL,
@@ -1366,8 +1377,14 @@ void Pool_Free_Arenas(Arena_Pool *pool) {
         pool = next_pool;
     }
 
-    // clear all the flags.
-    pool->in_use_flags = 0;
+    // clear this entire struct, make ready to use again,
+    // it should be ready to use again
+    //
+    // removes settings from all arena's
+    //
+    // probably should change this behaviour if pool ever gets
+    // any settings, like the arena has
+    Mem_Zero_Struct(original_pool);
 }
 
 
