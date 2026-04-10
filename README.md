@@ -96,7 +96,7 @@ Arena_Clear(&a);
 Arena_Free(&a);
 ```
 
-But in alot of cases, you might:
+But in a lot of cases, you might:
     1. make an arena,
     2. allocate stuff,
     3. then free it.
@@ -418,12 +418,12 @@ UNREACHABLE();
 #define TRILLION        (1000UL * 1000UL * 1000UL * 1000UL)
 
 
-#define MILISECONDS_PER_SECOND          THOUSAND
+#define MILLISECONDS_PER_SECOND          THOUSAND
 #define MICROSECONDS_PER_SECOND         MILLION
 #define NANOSECONDS_PER_SECOND          BILLION
 
 // good for usleep
-#define MILISECONDS_PER_MICROSECOND     (MICROSECONDS_PER_SECOND / MILISECONDS_PER_SECOND)
+#define MILLISECONDS_PER_MICROSECOND     (MICROSECONDS_PER_SECOND / MILLISECONDS_PER_SECOND)
 
 
 
@@ -436,7 +436,7 @@ UNREACHABLE();
 // mark a variable inside of a function that persists though function calls.
 #define local_persist       static
 // casey once said that all this dose is help the compiler deal with
-// multithreaded code, by forceing the functions to not store the
+// multithreaded code, by forcing the functions to not store the
 // value of the variable into their own registers.
 #define global_variable     static
 ```

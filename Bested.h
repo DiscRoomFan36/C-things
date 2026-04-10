@@ -253,8 +253,8 @@ s32   Mem_Cmp (void *ptr1, void *ptr2, u64 count);
     #endif
 #endif // BESTED_ALIGNED_ALLOC
 
-// this is allways based on BESTED_ALLIGNED_ALLOC,
-// but no code will assert if BESTED_ALIGNED_ALLOC dosent return the right allignment.
+// this is always based on BESTED_ALIGNED_ALLOC,
+// but no code will assert if BESTED_ALIGNED_ALLOC doesn't return the right alignment.
 #define BESTED_MALLOC(size)                     BESTED_ALIGNED_ALLOC(Alignof(u64), size)
 
 
@@ -299,9 +299,9 @@ s32   Mem_Cmp (void *ptr1, void *ptr2, u64 count);
 #define Atomic_Clear(object)                Atomic_Store(object, false)
 
 // capture a lock for the duration of some scope.
-// this is made of 2 statements so dont put it right after an if statment or something...
+// this is made of 2 statements so dont put it right after an if statement or something...
 //
-// I shouldnt have to say this but NEVER try to escape the scope any other way then the bottom.
+// I shouldn't have to say this but NEVER try to escape the scope any other way then the bottom.
 #define Atomic_Capture_Lock(lock) while (Atomic_Test_And_Set(lock)); for (int __lock_macro_holder = 0; __lock_macro_holder == 0; __lock_macro_holder = (Atomic_Clear(lock), 1))
 
 
@@ -312,7 +312,7 @@ s32   Mem_Cmp (void *ptr1, void *ptr2, u64 count);
 
 
 // if you provide a version of ARENA_PANIC that dose not abort(),
-// we will return immidiatly after this macro is called.
+// we will return immediately after this macro is called.
 #ifndef ARENA_PANIC
     #define ARENA_PANIC(file, line, reason, ...)                                                            \
         do {                                                                                                \
@@ -1057,7 +1057,7 @@ internal inline void *Arena_Internal_Get_New_Memory_At_Last_Region(Arena *arena,
     s64 how_far_forward = Mem_Ptr_Diff(U64_To_Ptr(aligned_ptr_u64), arena->last->data + arena->last->count_in_bytes);
     ASSERT(how_far_forward >= 0);
 
-    // lets hope this dosent happen.
+    // lets hope this doesn't happen.
     if (arena->last->count_in_bytes + how_far_forward + size_in_bytes > arena->last->capacity_in_bytes) {
         return NULL;
     }
@@ -1211,7 +1211,7 @@ void _Arena_Add_Buffer_As_Storage_Space(Arena *arena, void *buffer, u64 buffer_s
 
     if (arena->last == NULL) {
         if (arena->first != NULL) {
-            ARENA_PANIC(file, line, "Arena_Add_Buffer_As_Storeage_Space: arena->first != NULL, something went wrong internaly");
+            ARENA_PANIC(file, line, "Arena_Add_Buffer_As_Storeage_Space: arena->first != NULL, when arena->last == NULL, something went wrong internally");
         }
         arena->first = new_region;
         arena->last  = new_region;
@@ -1262,7 +1262,7 @@ const char *Arena_sprintf(Arena *arena, const char *format, ...) {
 
         // only happens when Arena_Alloc either returns null because it was
         // allowed to return null, or it panic'd (and the panic function was
-        // replaced with something that dosent abort), either way the user
+        // replaced with something that doesn't abort), either way the user
         // of this function will expect this to maybe be null.
         if (!buf) return NULL;
 
