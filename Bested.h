@@ -6,7 +6,7 @@
 // Created  - 04/08/25
 // Modified - 15/04/26
 //
-// Version  - 0.1.0
+// Version  - 0.1.1
 //
 // Make sure to...
 //      #define BESTED_IMPLEMENTATION
@@ -668,9 +668,6 @@ void String_Builder_Free(String_Builder *sb);
     #define ARRAY_INITAL_CAPACITY       32
 #endif
 
-// what the array header contains, this is an implementation detail.
-#define Array_Header_Items struct { u64 count; u64 capacity; Arena *allocator; }
-typedef Array_Header_Items Array_Header;
 
 //
 // Example:
@@ -680,63 +677,81 @@ typedef Array_Header_Items Array_Header;
 //   - make a type
 //      typedef Array(Bar) Bar_Array;
 //
-//   foo_array.count     = /* number of items in array */
 //   foo_array.items     = /* the array pointer */
+//   foo_array.count     = /* number of items in array */
 //   foo_array.capacity  = /* the capacity */
 //   foo_array.allocator = /* a settable arena allocator */
 //
 #define Array(Type)                         \
     struct {                                \
         Type *items;                        \
-        /* this union makes implementation details less jank.*/     \
-        union {                             \
-            Array_Header_Items;             \
-            Array_Header array_header;      \
-        };                                  \
+        u64 count;                          \
+        u64 capacity;                       \
+        Arena *allocator;                   \
     }
 
-void *Array_Grow(Array_Header *header, void *array, u64 item_size, u64 item_align, u64 count, b32 clear_to_zero, const char *file, s32 line);
-void Array_Shift(Array_Header *header, void *array, u64 item_size, u64 from_index);
 
+// this struct shares the same shape as every array, so we can pass a pointer
+// to an array into a function, and still work normally with its contents.
+typedef struct {
+    void *items;
+    u64 count;
+    u64 capacity;
+    Arena *allocator;
+} Generic_Array;
 
-#define Array_Header_Cast(a)    (&(a)->array_header)
+// so generic functions know how to manipulate the item pointer.
+typedef struct {
+    u64 item_size;
+    u64 item_align;
+} Array_Item_Type_Properties_Struct;
+
 
 #define Array_Item_Size(a)      sizeof(*(a)->items)
 #define Array_Item_Align(a)     Alignof(*(a)->items)
+#define Get_Item_Type_Properties(array) ( (Array_Item_Type_Properties_Struct){ Array_Item_Size(array), Array_Item_Align(array) } )
+
+// might increase the capacity of the array,
+// array will be able to hold at least count elements.
+void Array_Maybe_Grow(Generic_Array *array, Array_Item_Type_Properties_Struct item_properties, u64 new_count, b32 clear_to_zero, const char *file, s32 line);
+
+// shifts the array left, why do i have this function?
+void Array_Shift(Generic_Array *array, Array_Item_Type_Properties_Struct item_properties, u64 from_index);
+
+
 
 // add a single value
-#define Array_Append(a, value)                                                                                                                                      \
-    (*((void **)&(a)->items) = Array_Grow(Array_Header_Cast(a), (a)->items, Array_Item_Size(a), Array_Item_Align(a), (a)->count + 1, false, __FILE__, __LINE__),    \
-    (a)->items[(a)->count++] = (value))
+//
+// could be a function, but would have to take a void* and those suck.
+// this is a macro so you dont have to make a reference every time you add something.
+#define Array_Append(array, value)                                                                                                  \
+    (Array_Maybe_Grow((Generic_Array*)(array), Get_Item_Type_Properties(array), (array)->count + 1, false, __FILE__, __LINE__),     \
+    (array)->items[(array)->count++] = (value))
 
-// add 'n' unzero'd items, returns a pointer to the first element
-#define Array_Add(a, n)                                                                                                                                             \
-    (*((void **)&(a)->items) = Array_Grow(Array_Header_Cast(a), (a)->items, Array_Item_Size(a), Array_Item_Align(a), (a)->count + (n), false, __FILE__, __LINE__),  \
-    (a)->count += (n),                                                                                                                                              \
-    &(a)->items[(a)->count - (n)])
+#define Array_Add(array, n, zeroed)                                                                                                 \
+    (Array_Maybe_Grow((Generic_Array*)(array), Get_Item_Type_Properties(array), (array)->count + (n), zeroed, __FILE__, __LINE__),  \
+    (array)->count += (n),                                                                                                          \
+    &(array)->items[(array)->count - (n)])
 
 
-// Add 'n' zero'd items to the back of the list
-#define Array_Add_Clear(a, n)                                                                                                                                       \
-    (*((void **)&(a)->items) = Array_Grow(Array_Header_Cast(a), (a)->items, Array_Item_Size(a), Array_Item_Align(a), (a)->count + (n), true, __FILE__, __LINE__),   \
-    (a)->count += (n),                                                                                                                                              \
-    &(a)->items[(a)->count - (n)])
 
 // make sure there is enough room to hold 'n' items, dose not increase count.
-#define Array_Reserve(a, n)                                                                                                                             \
-    (*((void **)&(a)->items) = Array_Grow(Array_Header_Cast(a), (a)->items, Array_Item_Size(a), Array_Item_Align(a), (n), false, __FILE__, __LINE__))
+#define Array_Reserve(array, n)                                                                                 \
+    (Array_Maybe_Grow((Generic_Array*)(array), Get_Item_Type_Properties(array), (n), false, __FILE__, __LINE__))
 
-#define Array_Insert(a, i, value)                                                                                                                                   \
-    (*((void **)&(a)->items) = Array_Grow(Array_Header_Cast(a), (a)->items, Array_Item_Size(a), Array_Item_Align(a), (a)->count + 1, false, __FILE__, __LINE__),    \
-    Mem_Move((a)->items + (i), (a)->items + i - 1, ((a)->count - (i)) * Array_Item_Size(a)),                                                                        \
-    (a)->items[(i)] = (value),                                                                                                                                      \
-    (a)->count += 1)
+#define Array_Insert(array, index, value)                                                                                           \
+    (Array_Maybe_Grow((Generic_Array*)(array), Get_Item_Type_Properties(array), (array)->count + 1, false, __FILE__, __LINE__),     \
+    Mem_Move((array)->items + (index), (array)->items + (index) - 1, ((array)->count - (index)) * Array_Item_Size(array)),          \
+    (array)->items[(index)] = (value),                                                                                              \
+    (array)->count += 1)
 
-#define Array_Remove(a, i, n)                                                                               \
-    do {                                                                                                    \
-        ASSERT((0 <= (i) && (i) < (a)->count) && (0 <= (n) && (n) <= (a)->count - (i)));                    \
-        Mem_Move((a)->items + (i), (a)->items + (i) + (n), ((a)->count - (i) - (n)) * Array_Item_Size(a));  \
-        (a)->count -= (n);                                                                                  \
+
+// TODO this could be a function.
+#define Array_Remove(array, index, n)                                                                                                   \
+    do {                                                                                                                                \
+        ASSERT((0 <= (index) && (index) < (array)->count) && (0 <= (n) && (n) <= (array)->count - (index)));                            \
+        Mem_Move((array)->items + (index), (array)->items + (index) + (n), ((array)->count - (index) - (n)) * Array_Item_Size(array));  \
+        (array)->count -= (n);                                                                                                          \
     } while(0)
 
 // Dose the full swap, so if you add +1 to the count, the item will return.
@@ -754,7 +769,7 @@ void Array_Shift(Array_Header *header, void *array, u64 item_size, u64 from_inde
 
 // u64 index = it - array->items;
 #define Array_For_Each(type, it, array)                                             \
-    for (type *it = (array)->items; it < (array)->items + (array)->count; ++it)
+    for (type *it = (array)->items; it < (array)->items + (array)->count; it++)
 
 
 #define Array_Free(array)                   \
@@ -786,6 +801,8 @@ void Array_Shift(Array_Header *header, void *array, u64 item_size, u64 from_inde
 // ===================================================
 //                Dynamic HashMap
 // ===================================================
+
+// TODO finish this.
 
 //
 // Example Array:
@@ -1902,55 +1919,66 @@ void String_Builder_Free(String_Builder *sb) {
 //                Dynamic Arrays
 // ===================================================
 
-void *Array_Grow(Array_Header *header, void *array, u64 item_size, u64 item_align, u64 count, b32 clear_to_zero, const char *file, s32 line) {
-    if (count > header->capacity) {
-        header->capacity = header->capacity ? header->capacity * 2 : ARRAY_INITAL_CAPACITY;
-        while (header->capacity < count) header->capacity *= 2;
+void Array_Maybe_Grow(Generic_Array *array, Array_Item_Type_Properties_Struct item_properties, u64 new_count, b32 clear_to_zero, const char *file, s32 line) {
+    ASSERT(array); // would be kinda weird.
 
-        void *new_array;
-        if (header->allocator) {
+    // if the new count is less, we dont need to do anything. not even clear anything.
+    if (new_count <= array->count) return;
+
+    if (new_count > array->capacity) {
+        array->capacity = array->capacity ? array->capacity * 2 : ARRAY_INITAL_CAPACITY;
+        while (array->capacity < new_count) array->capacity *= 2;
+
+        void *new_array = NULL;
+        if (array->allocator) {
 
             // special case where the last thing to allocate was this current array,
             // in this case we dont need to do any Mem_Copy, just advance the count_in_bytes.
-            if (header->allocator->last) {
-                bool last_allocation_was_this_array = (header->allocator->last->data + header->allocator->last->count_in_bytes) - (header->count * item_size) == array;
+            if (array->allocator->last) {
+                bool last_allocation_was_this_array = (array->allocator->last->data + array->allocator->last->count_in_bytes) - (array->count * item_properties.item_size) == array->items;
                 if (last_allocation_was_this_array) {
-                    u64 number_of_new_elements = header->capacity - header->count;
-                    u64 new_amount_to_allocate = number_of_new_elements * item_size;
-                    bool new_array_can_fit_into_current_region = header->allocator->last->count_in_bytes + new_amount_to_allocate <= header->allocator->last->capacity_in_bytes;
+                    u64 number_of_new_elements = array->capacity - array->count;
+                    u64 new_amount_to_allocate = number_of_new_elements * item_properties.item_size;
+                    bool new_array_can_fit_into_current_region = array->allocator->last->count_in_bytes + new_amount_to_allocate <= array->allocator->last->capacity_in_bytes;
 
                     if (new_array_can_fit_into_current_region) {
-                        header->allocator->last->count_in_bytes += new_amount_to_allocate;
+                        // TODO maybe call this function, this is some dangerous manipulation.
+                        // Arena_Alloc(array->allocator, new_amount_to_allocate);
+                        array->allocator->last->count_in_bytes += new_amount_to_allocate;
                         goto skip_allocation;
                     }
                 }
             }
 
-            void *_Arena_Alloc(Arena *arena, u64 size_in_bytes, Arena_Alloc_Opt opt, const char *file, s32 line);
-
+            // need to do this, need to set file and line properly.
+            //
+            // void *_Arena_Alloc(Arena *arena, u64 size_in_bytes, Arena_Alloc_Opt opt, const char *file, s32 line);
             new_array = _Arena_Alloc(
-                header->allocator, item_size * header->capacity,
-                (Arena_Alloc_Opt){.alignment = item_align, .clear_to_zero = false, },
+                array->allocator, item_properties.item_size * array->capacity,
+                (Arena_Alloc_Opt){.alignment = item_properties.item_align, .clear_to_zero = false, },
                 file, line
             );
-            Mem_Copy(new_array, array, item_size * header->count);
+            Mem_Copy(new_array, array->items, item_properties.item_size * array->count);
         } else {
-            new_array = BESTED_ALIGNED_ALLOC(item_align, item_size * header->capacity);
-            Mem_Copy(new_array, array, item_size * header->count);
-            BESTED_FREE(array);
+            new_array = BESTED_ALIGNED_ALLOC(item_properties.item_align, item_properties.item_size * array->capacity);
+            Mem_Copy(new_array, array->items, item_properties.item_size * array->count);
+            BESTED_FREE(array->items);
         }
 
-        array = new_array;
+        array->items = new_array;
     }
 
 skip_allocation:
-    if (clear_to_zero) Mem_Zero(((u8*)array) + (item_size * header->count), item_size * count);
-    return array;
+    if (clear_to_zero) {
+        u64 new_to_add = new_count - array->count;
+        Mem_Zero((u8*)array->items + (item_properties.item_size * array->count), item_properties.item_size * new_to_add);
+    }
 }
 
-void Array_Shift(Array_Header *header, void *array, u64 item_size, u64 from_index) {
-    Mem_Move(array, (u8*)array + from_index, (header->count - from_index) * item_size);
-    header->count -= from_index;
+
+void Array_Shift(Generic_Array *array, Array_Item_Type_Properties_Struct item_properties, u64 from_index) {
+    Mem_Move(array->items, (u8*)array->items + from_index, (array->count - from_index) * item_properties.item_size);
+    array->count -= from_index;
 }
 
 

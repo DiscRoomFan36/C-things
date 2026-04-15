@@ -143,19 +143,17 @@ If only there was some kind of construct that could allocate many items at once?
 //   - make a type
 //      typedef Array(Bar) Bar_Array;
 //
-//   foo_array.items     = /* pointer to elements */
+//   foo_array.items     = /* the array pointer */
 //   foo_array.count     = /* number of items in array */
-//   foo_array.capacity  = /* capacity */
+//   foo_array.capacity  = /* the capacity */
 //   foo_array.allocator = /* a settable arena allocator */
 //
 #define Array(Type)                         \
     struct {                                \
         Type *items;                        \
-        /* this union makes implementation details less jank.*/     \
-        union {                             \
-            Array_Header_Items;             \
-            Array_Header array_header;      \
-        };                                  \
+        u64 count;                          \
+        u64 capacity;                       \
+        Arena *allocator;                   \
     }
 
 

@@ -29,13 +29,13 @@ int main(void) {
 
     Array_Reserve(&people, 32);
 
-    Array_Add_Clear(&people, 2); // add 2 empty people
+    Array_Add(&people, 2, true); // add 2 empty people
 
     Array_Insert(&people, 1, ((Person){.name = S("Steve"), .age = 60, .is_male = true}));
 
     Array_Remove(&people, 4, 1); // remove Ryan
 
-    Array_Add(&people, 1); // dangerous add.
+    Array_Add(&people, 1, false); // dangerous add.
     Array_Remove(&people, people.count-1, 1);
 
     Array_For_Each(Person, p, &people) {
