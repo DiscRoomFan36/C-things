@@ -440,6 +440,24 @@ UNREACHABLE();
 ```
 
 
+### Source Code Location
+```c
+// this is just pretty handy to carry around.
+typedef struct {
+    const char *file;
+    s32 line;
+} Source_Code_Location;
+
+// printf helpers
+#define SCL_Fmt         "%s:%d:"
+#define SCL_Arg(scl)    scl.file, scl.line
+
+#define Get_Source_Code_Location() ( (Source_Code_Location){ .file = __FILE__, .line = __LINE__ } )
+
+bool source_code_location_eq(Source_Code_Location a, Source_Code_Location b);
+```
+
+
 ### Just Some Nice Functions
 
 ```c
