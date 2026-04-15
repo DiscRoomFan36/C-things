@@ -381,6 +381,8 @@ NOTE: Clamp() Macro collides with raylib's clamp.
 // integers only
 #define Is_Pow_2(n)                 (((n) != 0) && (((n) & ((n)-1)) == 0))
 
+#define Proper_Mod(x, y) ({ Typeof(y) _y = (y); (((x) % _y) + _y) % _y; })
+
 #define Div_Ceil(x, y)      (((x) + (y) - 1) / (y))
 #define Div_Floor(x, y)     ((x) / (y))
 

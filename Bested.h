@@ -6,7 +6,7 @@
 // Created  - 04/08/25
 // Modified - 15/04/26
 //
-// Version  - 0.1.2
+// Version  - 0.1.3
 //
 // Make sure to...
 //      #define BESTED_IMPLEMENTATION
@@ -125,6 +125,8 @@ typedef double          f64;
 
 // integers only
 #define Is_Pow_2(n)                 (((n) != 0) && (((n) & ((n)-1)) == 0))
+
+#define Proper_Mod(x, y) ({ Typeof(y) _y = (y); (((x) % _y) + _y) % _y; })
 
 #define Div_Ceil(x, y)      (((x) + (y) - 1) / (y))
 #define Div_Floor(x, y)     ((x) / (y))
