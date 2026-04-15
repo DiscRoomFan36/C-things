@@ -6,7 +6,7 @@
 // Created  - 04/08/25
 // Modified - 15/04/26
 //
-// Version  - 0.1.3
+// Version  - 0.1.4
 //
 // Make sure to...
 //      #define BESTED_IMPLEMENTATION
@@ -257,11 +257,11 @@ static_assert(sizeof(u64) >= sizeof(void*), "A pointer is pretty much always a u
 // this it was probably a pointer in the first place.
 #define U64_To_Ptr(U64)     ((void*)(U64))
 
-b32 Mem_Is_Aligned          (void *ptr, u64 alignment);
-u64 Mem_Align_Forward       (u64 size, u64 alignment); // returns aligned value
-u64 Mem_Align_Back          (u64 size, u64 alignment); // returns aligned value
-void *Mem_Byte_Offset       (void *ptr, s64 bytes);
-s64 Mem_Ptr_Diff            (void *ptr1, void *ptr2);  // ptr1 - ptr2
+bool  Mem_Is_Aligned          (void *ptr, u64 alignment);
+u64   Mem_Align_Forward       (u64 size, u64 alignment); // returns aligned value
+u64   Mem_Align_Back          (u64 size, u64 alignment); // returns aligned value
+void *Mem_Byte_Offset         (void *ptr, s64 bytes);
+s64   Mem_Ptr_Diff            (void *ptr1, void *ptr2);  // ptr1 - ptr2
 
 void *Mem_Copy(void *dest, void *src, u64 size);
 void *Mem_Move(void *dest, void *src, u64 size);
@@ -380,6 +380,8 @@ typedef struct Region {
     u64 capacity_in_bytes;
 
     // used in Arena_Free()
+    //
+    // also this might be the only use of b32 ever. wow.
     b32 do_not_free_this;
     // extra padding bytes.
     u8 padding[4];
@@ -405,14 +407,14 @@ typedef struct Arena {
     //
     // You may want this if you want your programs to be bullet proof,
     // to not panic at the first sign of trouble.
-    b32 dont_panic_when_allocation_failure;
+    bool dont_panic_when_allocation_failure;
 
     // If this is set to True, if it runs out of memory in its current Region, it will panic.
     // Note. Arena_Initialize_First_Page() will still trigger this function.
     //
     // Uou may want this if you want more control over when your program allocates,
     // and want your program to have a fixed amount of memory usage.
-    b32 panic_when_trying_to_allocate_new_page;
+    bool panic_when_trying_to_allocate_new_page;
 } Arena;
 
 // used for marking and then rewinding an arena.
@@ -424,7 +426,7 @@ typedef struct Arena_Mark {
 
 typedef struct {
     u64 alignment;
-    b32 clear_to_zero;
+    bool clear_to_zero;
 } Arena_Alloc_Opt;
 
 
@@ -481,7 +483,7 @@ typedef u32 Pool_Flag_Type;
 //
 typedef struct Arena_Pool {
     Atomic(Pool_Flag_Type)  in_use_flags;
-    Atomic(b32)             creating_new_pool_in_chain_lock;
+    Atomic(bool)            creating_new_pool_in_chain_lock;
 
     Arena arena_pool[NUM_POOL_ARENAS];
 
@@ -507,7 +509,7 @@ void Pool_Free_Arenas(Arena_Pool *pool);
 // ===================================================
 
 // returns true if c is one of the ASCII whitespace characters.
-b32 Is_Whitespace(char c);
+bool Is_Whitespace(char c);
 #define To_Upper(c) (('a' <= (c) && (c) <= 'z') ? ((c) - 'a' + 'A') : (c))
 #define To_Lower(c) (('A' <= (c) && (c) <= 'Z') ? ((c) - 'A' + 'a') : (c))
 
@@ -531,7 +533,7 @@ const char *temp_String_To_C_Str(String s);
 
 
 typedef struct {
-    b32 null_terminate;
+    bool null_terminate;
 } String_Duplicate_Opt;
 
 // if arena == NULL, uses BESTED_MALLOC.
@@ -543,11 +545,11 @@ String _String_Duplicate(Arena *arena, String s, String_Duplicate_Opt opt);
 // in place.
 void    String_To_Upper(String *s);
 
-b32     String_Eq           (String s1, String s2);
-b32     String_Starts_With  (String s, String prefix);
-b32     String_Ends_With    (String s, String postfix);
+bool    String_Eq           (String s1, String s2);
+bool    String_Starts_With  (String s, String prefix);
+bool    String_Ends_With    (String s, String postfix);
 
-b32     String_Contains_Char        (String s, char c);
+bool    String_Contains_Char        (String s, char c);
 // finds the first occurrence of c in s, -1 on failure
 s64     String_Find_Index_Of_Char   (String s, char c);
 // finds the first occurrence of needle in s, -1 on failure
@@ -564,7 +566,7 @@ void    String_Advance  (String *s, s64 count);
 // dose not check for null, or do any bounds checking. thats on you.
 String  String_Advanced (String s, s64 count);
 
-typedef b32 (*char_to_bool_func)(char);
+typedef bool (*char_to_bool_func)(char);
 // remove ASCII whitespace characters from the right of the String.
 String  String_Trim_Right(String s);
 // returns a String with the front chopped off, according to the test function.
@@ -739,7 +741,7 @@ typedef struct {
 
 // might increase the capacity of the array,
 // array will be able to hold at least count elements.
-void Array_Maybe_Grow(Generic_Array *array, Array_Item_Type_Properties_Struct item_properties, u64 new_count, b32 clear_to_zero, Source_Code_Location source_code_location);
+void Array_Maybe_Grow(Generic_Array *array, Array_Item_Type_Properties_Struct item_properties, u64 new_count, bool clear_to_zero, Source_Code_Location source_code_location);
 
 // shifts the array left, why do i have this function?
 void Array_Shift(Generic_Array *array, Array_Item_Type_Properties_Struct item_properties, u64 from_index);
@@ -1040,7 +1042,7 @@ bool source_code_location_eq(Source_Code_Location a, Source_Code_Location b) {
 //        Useful Memory Manipulation Functions
 // ===================================================
 
-b32 Mem_Is_Aligned(void *ptr, u64 alignment) {
+bool Mem_Is_Aligned(void *ptr, u64 alignment) {
     static_assert(sizeof(u64) >= sizeof(void*), "doing math with pointers");
     return ((u64)ptr) % alignment == 0;
 }
@@ -1110,7 +1112,7 @@ internal void Arena_Internal_Free_Region(Region *region) {
 
 // inline because there is really nothing in this function.
 // just some funny casts, and a call to Mem_Set()
-internal inline void *Arena_Internal_Get_New_Memory_At_Last_Region(Arena *arena, u64 size_in_bytes, u64 alignment, b32 clear_to_zero) {
+internal inline void *Arena_Internal_Get_New_Memory_At_Last_Region(Arena *arena, u64 size_in_bytes, u64 alignment, bool clear_to_zero) {
     u64 aligned_ptr_u64 = Mem_Align_Forward(Ptr_To_U64(arena->last->data + arena->last->count_in_bytes), alignment);
     // u64 aligned_ptr_u64 = Ptr_To_U64(arena->last->data + arena->last->count_in_bytes);
 
@@ -1380,7 +1382,7 @@ Arena *Pool_Get(Arena_Pool *pool) {
             return new_arena;
         }
 
-        Atomic(b32) *lock = &pool->creating_new_pool_in_chain_lock;
+        Atomic(bool) *lock = &pool->creating_new_pool_in_chain_lock;
         Atomic_Capture_Lock(lock) {
             if (!pool->next_pool) {
                 pool->next_pool = (Arena_Pool*)BESTED_MALLOC(sizeof(Arena_Pool));
@@ -1406,7 +1408,7 @@ void Pool_Release(Arena_Pool *pool, Arena *to_release) {
             return;
         }
 
-        Atomic(b32) *lock = &pool->creating_new_pool_in_chain_lock;
+        Atomic(bool) *lock = &pool->creating_new_pool_in_chain_lock;
         Atomic_Capture_Lock(lock) {
             pool = pool->next_pool;
         }
@@ -1453,7 +1455,7 @@ void Pool_Free_Arenas(Arena_Pool *pool) {
 //                       String
 // ===================================================
 
-b32 Is_Whitespace(char c) {
+bool Is_Whitespace(char c) {
     if (c == ' ' ) return true;
     if (c == '\f') return true;
     if (c == '\n') return true;
@@ -1513,22 +1515,22 @@ void String_To_Upper(String *s) {
     for (u64 i = 0; i < s->length; i++) s->data[i] = To_Upper(s->data[i]);
 }
 
-b32 String_Eq(String s1, String s2) {
+bool String_Eq(String s1, String s2) {
     if (s1.length != s2.length) return false;
     return Mem_Eq(s1.data, s2.data, s1.length);
 }
 
-b32 String_Starts_With(String s, String prefix) {
+bool String_Starts_With(String s, String prefix) {
     if (s.length < prefix.length) return false;
     return Mem_Eq(s.data, prefix.data, prefix.length);
 }
 
-b32 String_Ends_With(String s, String postfix) {
+bool String_Ends_With(String s, String postfix) {
     if (s.length < postfix.length) return false;
     return Mem_Eq(s.data + s.length - postfix.length, postfix.data, postfix.length);
 }
 
-b32 String_Contains_Char(String s, char c) {
+bool String_Contains_Char(String s, char c) {
     for (u64 i = 0; i < s.length; i++) {
         if (s.data[i] == c) return true;
     }
@@ -1560,7 +1562,7 @@ s64 String_Find_Index_Of(String s, String needle) {
         // check if not enough room for needle
         if (s.length - index < needle.length) return -1;
 
-        b32 flag = true;
+        bool flag = true;
         for (u64 i = 1; i < needle.length; i++) {
             if (s.data[index+i] != needle.data[i]) {
                 flag = false;
@@ -1645,9 +1647,9 @@ String String_Remove_Extention(String s) {
 
 
 String String_Get_Next_Line(String *parseing, u64 *line_num, String_Get_Next_Line_Flag flags) {
-    b32 remove_comments = Flag_Exists(flags, SGNL_Remove_Comments);
-    b32 trim            = Flag_Exists(flags, SGNL_Trim);
-    b32 skip_empty      = Flag_Exists(flags, SGNL_Skip_Empty);
+    bool remove_comments = Flag_Exists(flags, SGNL_Remove_Comments);
+    bool trim            = Flag_Exists(flags, SGNL_Trim);
+    bool skip_empty      = Flag_Exists(flags, SGNL_Skip_Empty);
 
     String next_line = *parseing;
 
@@ -1960,7 +1962,7 @@ void String_Builder_Free(String_Builder *sb) {
 //                Dynamic Arrays
 // ===================================================
 
-void Array_Maybe_Grow(Generic_Array *array, Array_Item_Type_Properties_Struct item_properties, u64 new_count, b32 clear_to_zero, Source_Code_Location source_code_location) {
+void Array_Maybe_Grow(Generic_Array *array, Array_Item_Type_Properties_Struct item_properties, u64 new_count, bool clear_to_zero, Source_Code_Location source_code_location) {
     ASSERT(array); // would be kinda weird.
 
     // if the new count is less, we dont need to do anything. not even clear anything.

@@ -241,11 +241,11 @@ String dup_string = String_Duplicate(&arena, my_string, .null_terminate = true);
 // in place, don't know why i have this function...
 String_To_Upper(my_string);
 
-b32 result = String_Eq(my_string, S("Hello World"));
-b32 result = String_Starts_With(my_string, S("Hello"));
-b32 result = String_Ends_With  (my_string, S("World"));
+bool result = String_Eq(my_string, S("Hello World"));
+bool result = String_Starts_With(my_string, S("Hello"));
+bool result = String_Ends_With  (my_string, S("World"));
 
-b32 result = String_Contains_Char(my_string, " ");
+bool result = String_Contains_Char(my_string, " ");
 
 // returns -1 on failure.
 s64 index  = String_Find_Index_Of_Char(my_string, " ");
