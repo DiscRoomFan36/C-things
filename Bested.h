@@ -4,9 +4,9 @@
 // Author   - Fletcher M
 //
 // Created  - 04/08/25
-// Modified - 15/04/26
+// Modified - 17/04/26
 //
-// Version  - 0.1.4
+// Version  - 0.1.5
 //
 // Make sure to...
 //      #define BESTED_IMPLEMENTATION
@@ -1604,11 +1604,19 @@ String String_get_single_line(String s, u64 index) {
 }
 
 void   String_Advance (String *s, s64 count) {
-    s->data   += count;
-    s->length -= count;
+    // don't do anything to null strings.
+    if (s->data == NULL) return;
+    // don't go over the length
+    if ((s64)s->length < count) {
+        String_Advance(s, s->length); // this'll get compiled out.
+    } else {
+        s->data   += count;
+        s->length -= count;
+    }
 }
 String String_Advanced(String s, s64 count) {
-    return (String){.data = s.data + count, .length = s.length - count};
+    String_Advance(&s, count);
+    return s;
 }
 
 String String_Trim_Right(String s) {
