@@ -6,7 +6,7 @@
 // Created  - 04/08/25
 // Modified - 17/04/26
 //
-// Version  - 0.1.5
+// Version  - 0.1.6
 //
 // Make sure to...
 //      #define BESTED_IMPLEMENTATION
@@ -668,7 +668,7 @@ u64 String_Builder_Total_Capacity(String_Builder *sb);
 void String_Builder_Clear(String_Builder *sb);
 
 // Dose not check for NULL byte
-void String_Builder_Ptr_And_Size(String_Builder *sb, char *ptr, u64 size);
+void String_Builder_Ptr_And_Size(String_Builder *sb, void *ptr, u64 size);
 // Dose not check for NULL byte
 void String_Builder_String(String_Builder *sb, String s);
 
@@ -1837,7 +1837,7 @@ void String_Builder_Clear(String_Builder *sb) {
     sb->current_segment  = &sb->first_segment_holder;
 }
 
-void String_Builder_Ptr_And_Size(String_Builder *sb, char *ptr, u64 size) {
+void String_Builder_Ptr_And_Size(String_Builder *sb, void *ptr, u64 size) {
     if (size == 0) return;
 
     Character_Buffer *buffer = String_Builder_Internal_Maybe_Expand_To_Fit(sb, size);
