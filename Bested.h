@@ -4,9 +4,9 @@
 // Author   - Fletcher M
 //
 // Created  - 04/08/25
-// Modified - 17/04/26
+// Modified - 19/04/26
 //
-// Version  - 0.1.6
+// Version  - 0.1.7
 //
 // Make sure to...
 //      #define BESTED_IMPLEMENTATION
@@ -2191,7 +2191,7 @@ String Read_Entire_File(String filename, Arena *arena) {
     String result = ZEROED;
 
     // pretty sure PATHMAX is less than TEMP_STRING_TO_C_STR_MAX_LENGTH
-    if (filename.length < TEMP_STRING_TO_C_STR_MAX_LENGTH) {
+    if (filename.length >= TEMP_STRING_TO_C_STR_MAX_LENGTH) {
         fprintf(stderr, "filename length is bigger than temp_String_To_C_Str() storage, was %zu, witch is probably bigger than PATH_MAX on a lot of OS's", filename.length);
         return result;
     }
