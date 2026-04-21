@@ -6,7 +6,7 @@
 // Created  - 04/08/25
 // Modified - 21/04/26
 //
-// Version  - 0.2.3
+// Version  - 0.2.4
 //
 // Make sure to...
 //      #define BESTED_IMPLEMENTATION
@@ -848,7 +848,34 @@ typedef u64  (*Hash_Function    )(void *key, u64 size);
 typedef bool (*Equality_Function)(void *key_a, void *key_b, u64 size);
 
 //
-// TODO example here.
+// Example:
+//   - make a variable:
+//     Hash_Map(u32, f32) id_to_percent_map = ZEROED;
+//
+//   - make a type:
+//     typedef Hash_Map(String, Baz) Baz_Hash_Map;
+//
+//   id_to_percent_map.count         = /* number of entries in hash map        */
+//   id_to_percent_map.hash_function = /* hash function to use for the key     */
+//   id_to_percent_map.eq_function   = /* equality function to use for the key */
+//   id_to_percent_map.allocator     = /* a settable arena allocator           */
+//   id_to_percent_map.default_value = /* the default value when you use Hash_Map_Get_Or_Default() and the key is not in the map */
+//
+// ```
+//     Hash_Map(s32, String) hash_map = {
+//         .hash_function = NULL, // the default hash function just takes
+//         .eq_function   = NULL, // the bytes of your type and hash's it.
+//
+//         .default_value = S("NO VALUE"), // a default value
+//     };
+//
+//    Hash_Map(String, s32) reverse_map = {
+//         .hash_function = Hash_Map_Hash_String, // some hash functions are provided for the String types,
+//         .eq_function   = Hash_Map_Eq_String,   // (as well as 'const char *' type, but who cares about that one.)
+//
+//         .default_value = 0, // by default this is allready zero.
+//    };
+// ```
 //
 #define Hash_Map(Key_Type, Value_Type)      \
     struct {                                \
