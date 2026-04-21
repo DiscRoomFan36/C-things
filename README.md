@@ -211,6 +211,124 @@ foo_array.allocator = Pool_Get(&pool);
 }
 ```
 
+### Type Safe Hash Map's (with settable allocators.)
+
+```c
+//
+// Example:
+//   - make a variable:
+//     Hash_Map(u32, f32) id_to_percent_map = ZEROED;
+//
+//   - make a type:
+//     typedef Hash_Map(String, Baz) Baz_Hash_Map;
+//
+//   id_to_percent_map.count         = /* number of entries in hash map        */
+//   id_to_percent_map.hash_function = /* hash function to use for the key     */
+//   id_to_percent_map.eq_function   = /* equality function to use for the key */
+//   id_to_percent_map.allocator     = /* a settable arena allocator           */
+//   id_to_percent_map.default_value = /* the default value when you use Hash_Map_Get_Or_Default() and the key is not in the map */
+//
+// ```
+//     Hash_Map(s32, String) hash_map = {
+//         .hash_function = NULL, // the default hash function just takes
+//         .eq_function   = NULL, // the bytes of your type and hash's it.
+//
+//         .default_value = S("NO VALUE"), // a default value
+//     };
+//
+//    Hash_Map(String, s32) reverse_map = {
+//         .hash_function = Hash_Map_Hash_String, // some hash functions are provided for the String types,
+//         .eq_function   = Hash_Map_Eq_String,   // (as well as 'const char *' type, but who cares about that one.)
+//
+//         .default_value = 0, // by default this is allready zero.
+//    };
+// ```
+//
+#define Hash_Map(Key_Type, Value_Type)      \
+    struct {                                \
+        struct {                            \
+            u64        hash;                \
+            Key_Type   key;                 \
+            Value_Type value;               \
+        } *entries;                         \
+                                            \
+        /* total number of alive items in hash_map */   \
+        u64 count;                          \
+        /* total number dead items in hash map */       \
+        u64 dead_count;                     \
+        u64 capacity;                       \
+                                            \
+        Hash_Function     hash_function;    \
+        Equality_Function eq_function;      \
+                                            \
+        /* Settable allocator */            \
+        Arena *allocator;                   \
+                                            \
+        /* Default value of new items */    \
+        Value_Type default_value;           \
+    }
+
+
+typedef struct {
+    u32 kaz;
+    f64 lax;
+} Boz;
+
+typedef Hash_Map(Boz, String) Boz_To_Type;
+Boz_To_Type boz_to_type = {
+    .default_value = S("(NONE)"),
+    .allocator = &my_arena,
+};
+
+Boz friendly_boz = { .kaz = 5, .lax = 1 };
+Boz angry_boz = { .kaz = 2, .lax = 7 };
+
+// this will return a pointer value,
+//
+// (there may or may not be something already there,
+// but the default value will not be Mem_Copy()'d
+// into there if there was no previous entry with this key..)
+*Hash_Map_Put(&boz_to_type, friendly_boz) = S("friendly");
+// this is the same thing, but the default is set in the memory.
+*Hash_Map_Get_Or_Default(&boz_to_type, angry_boz) = S("angry");
+
+// setting something to default in a kinda funny way.
+Hash_Map_Get_Or_Default(&boz_to_type, ((Boz){0, 0}));
+
+// may return null
+Hash_Map_Get(&boz_to_type, ...);
+
+if (Hash_Map_Contains(&boz_to_type, friendly_boz)) {
+    printf("its here!\n");
+}
+
+// i don't like angry things.
+Hash_Map_Remove(&boz_to_type, angry_boz);
+
+// remove something but you only have the value.
+String *empty_type = Hash_Map_Get(&boz_to_type, ((Boz){0, 0}));
+Hash_Map_Remove_By_Value(&boz_to_type, empty_type);
+
+
+// i want to fit at least 100 items in here.
+Hash_Map_Reserve(&boz_to_type, 100);
+
+// clear the hash map, keep the memory
+Hash_Map_Clear(&boz_to_type);
+// free the memory, don't use if you use an allocator
+Hash_Map_Free(&boz_to_type);
+
+// loop over all entries.
+Hash_Map_For_Each(it, &boz_to_type) {
+    // get key for value.
+    String *key = Hash_Map_Key_For(&boz_to_type, it);
+
+    // this operation is fine actually, it just marks the cell as dead,
+    // just don't add to the array while in a loop.
+    Hash_Map_Remove_By_Value(&boz_to_type, it); 
+}
+```
+
 
 ### String & String_Builder
 
