@@ -6,7 +6,7 @@
 // Created  - 04/08/25
 // Modified - 21/04/26
 //
-// Version  - 0.2.0
+// Version  - 0.2.1
 //
 // Make sure to...
 //      #define BESTED_IMPLEMENTATION
@@ -2221,6 +2221,9 @@ internal bool Hash_Map_Hash_Is_Bad(u64 hash) {
 //
 // or return somewhere new to put the key
 internal void *Hash_Map_Maybe_Get_Entry(Generic_Hash_Map *hash_map, void *key, u64 hash, Hash_Map_Key_Value_Type_Properties properties) {
+    ASSERT(hash_map);
+    ASSERT(key);
+
     // don't give this an invalid hash.
     ASSERT(!Hash_Map_Hash_Is_Bad(hash));
 
@@ -2258,6 +2261,9 @@ internal void *Hash_Map_Maybe_Get_Entry(Generic_Hash_Map *hash_map, void *key, u
 //
 // if the key dose not exist in the hash map, return NULL
 internal void *Hash_Map_Get_Entry_Of_Key(Generic_Hash_Map *hash_map, void *key, u64 hash, Hash_Map_Key_Value_Type_Properties properties) {
+    ASSERT(hash_map);
+    ASSERT(key);
+
     void *entry = Hash_Map_Maybe_Get_Entry(hash_map, key, hash, properties);
 
     if (entry == NULL) return NULL;
@@ -2271,6 +2277,9 @@ internal void *Hash_Map_Get_Entry_Of_Key(Generic_Hash_Map *hash_map, void *key, 
 
 // hash's that are equal to Hash_Map_UNALLOCATED or Hash_Map_DEAD are not good.
 internal u64 Hash_Map_Safely_Get_Hash(Generic_Hash_Map *hash_map, void *key, Hash_Map_Key_Value_Type_Properties properties) {
+    ASSERT(hash_map);
+    ASSERT(key);
+
     Hash_Function hash_function = hash_map->hash_function ? hash_map->hash_function : Hash_Map_Default_Hash_Function;
     u64 key_hash = hash_function(key, properties.key_size);
 
@@ -2285,6 +2294,9 @@ internal u64 Hash_Map_Safely_Get_Hash(Generic_Hash_Map *hash_map, void *key, Has
 }
 
 internal void *Generic_Hash_Map_Get_Entry_For_Value(Generic_Hash_Map *hash_map, void *value_ptr, Hash_Map_Key_Value_Type_Properties properties) {
+    ASSERT(hash_map);
+    ASSERT(value_ptr);
+
     void *entry = (u8*)value_ptr - properties.value_offset_in_entry;
 
     { // do some checks to be sure we got a valid pointer.
@@ -2302,6 +2314,8 @@ internal void *Generic_Hash_Map_Get_Entry_For_Value(Generic_Hash_Map *hash_map, 
 }
 
 internal void Hash_Map_Maybe_Grow(Generic_Hash_Map *hash_map, u64 be_able_to_fit_at_least, Hash_Map_Key_Value_Type_Properties properties, Source_Code_Location caller_location) {
+    ASSERT(hash_map);
+
     const u64 HASH_MAP_GROWTH_PERCENT = 75;
 
     // only grow array when at nearing capacity, not at capacity.
@@ -2374,6 +2388,9 @@ internal void Hash_Map_Maybe_Grow(Generic_Hash_Map *hash_map, u64 be_able_to_fit
 
 
 void *Generic_Hash_Map_Get(Generic_Hash_Map *hash_map, void *key, Hash_Map_Key_Value_Type_Properties properties) {
+    ASSERT(hash_map);
+    ASSERT(key);
+
     u64 key_hash = Hash_Map_Safely_Get_Hash(hash_map, key, properties);
 
     void *entry = Hash_Map_Get_Entry_Of_Key(hash_map, key, key_hash, properties);
@@ -2383,6 +2400,9 @@ void *Generic_Hash_Map_Get(Generic_Hash_Map *hash_map, void *key, Hash_Map_Key_V
 }
 
 internal void *Generic_Hash_Map_Put_Or_Get_Default_Helper(Generic_Hash_Map *hash_map, void *key, bool set_default, Hash_Map_Key_Value_Type_Properties properties, Source_Code_Location caller_location) {
+    ASSERT(hash_map);
+    ASSERT(key);
+
     u64 key_hash = Hash_Map_Safely_Get_Hash(hash_map, key, properties);
 
     // This might make the hash map grow, even when in
@@ -2415,21 +2435,32 @@ internal void *Generic_Hash_Map_Put_Or_Get_Default_Helper(Generic_Hash_Map *hash
 }
 
 void *Generic_Hash_Map_Get_Or_Default(Generic_Hash_Map *hash_map, void *key, Hash_Map_Key_Value_Type_Properties properties, Source_Code_Location caller_location) {
+    ASSERT(hash_map);
+    ASSERT(key);
+
     return Generic_Hash_Map_Put_Or_Get_Default_Helper(hash_map, key, true, properties, caller_location);
 }
 
 void *Generic_Hash_Map_Put(Generic_Hash_Map *hash_map, void *key, Hash_Map_Key_Value_Type_Properties properties, Source_Code_Location caller_location) {
+    ASSERT(hash_map);
+    ASSERT(key);
+
     return Generic_Hash_Map_Put_Or_Get_Default_Helper(hash_map, key, false, properties, caller_location);
 }
 
 
 bool Generic_Hash_Map_Contains(Generic_Hash_Map *hash_map, void *key, Hash_Map_Key_Value_Type_Properties properties) {
+    ASSERT(hash_map);
+    ASSERT(key);
+
     u64 key_hash = Hash_Map_Safely_Get_Hash(hash_map, key, properties);
     void *entry = Hash_Map_Get_Entry_Of_Key(hash_map, key, key_hash, properties);
     return entry != NULL;
 }
 
 void Generic_Hash_Map_Clear(Generic_Hash_Map *hash_map, Hash_Map_Key_Value_Type_Properties properties) {
+    ASSERT(hash_map);
+
     // set all entries to unallocated.
     for (u64 i = 0; i < hash_map->capacity; i++) {
         Generic_Entry *entry = (void*)((u8*)hash_map->entries + i * properties.entry_size);
@@ -2441,6 +2472,8 @@ void Generic_Hash_Map_Clear(Generic_Hash_Map *hash_map, Hash_Map_Key_Value_Type_
 }
 
 void Generic_Hash_Map_Free(Generic_Hash_Map *hash_map) {
+    ASSERT(hash_map);
+
     if (hash_map->allocator) {
         fprintf(stderr, "=======================================================================================\n");
         fprintf(stderr, "Are you serious?\n");
@@ -2468,10 +2501,15 @@ void Generic_Hash_Map_Free(Generic_Hash_Map *hash_map) {
 }
 
 void Generic_Hash_Map_Reserve(Generic_Hash_Map *hash_map, u64 num_to_reserve, Hash_Map_Key_Value_Type_Properties properties, Source_Code_Location caller_location) {
+    ASSERT(hash_map);
+
     Hash_Map_Maybe_Grow(hash_map, num_to_reserve, properties, caller_location);
 }
 
 bool Generic_Hash_Map_Remove(Generic_Hash_Map *hash_map, void *key, Hash_Map_Key_Value_Type_Properties properties) {
+    ASSERT(hash_map);
+    ASSERT(key);
+
     u64 key_hash = Hash_Map_Safely_Get_Hash(hash_map, key, properties);
 
     void *entry = Hash_Map_Get_Entry_Of_Key(hash_map, key, key_hash, properties);
@@ -2489,6 +2527,9 @@ bool Generic_Hash_Map_Remove(Generic_Hash_Map *hash_map, void *key, Hash_Map_Key
 }
 
 bool Generic_Hash_Map_Remove_By_Value(Generic_Hash_Map *hash_map, void *value_ptr, Hash_Map_Key_Value_Type_Properties properties) {
+    ASSERT(hash_map);
+    ASSERT(value_ptr);
+
     void *entry = Generic_Hash_Map_Get_Entry_For_Value(hash_map, value_ptr, properties);
 
     // would be super weird if this was the case.
@@ -2504,12 +2545,17 @@ bool Generic_Hash_Map_Remove_By_Value(Generic_Hash_Map *hash_map, void *value_pt
 
 
 void *Generic_Hash_Map_Key_For(Generic_Hash_Map *hash_map, void *value_ptr, Hash_Map_Key_Value_Type_Properties properties) {
+    ASSERT(hash_map);
+    ASSERT(value_ptr);
+
     void *entry = Generic_Hash_Map_Get_Entry_For_Value(hash_map, value_ptr, properties);
     return (u8*)entry + properties.key_offset_in_entry;
 }
 
 // returns if we should continue runing
 bool Generic_Hash_Map_For_Each_Iterator_Next(Generic_Hash_Map *hash_map, void **current_value, Hash_Map_Key_Value_Type_Properties properties) {
+    ASSERT(hash_map);
+    ASSERT(current_value);
 
     void *start = (u8*)hash_map->entries;
     void *end   = (u8*)hash_map->entries + hash_map->capacity * properties.entry_size;
@@ -2538,20 +2584,26 @@ bool Generic_Hash_Map_For_Each_Iterator_Next(Generic_Hash_Map *hash_map, void **
 
 
 u64 Hash_Map_Default_Hash_Function(void *key, u64 size) {
+    ASSERT(key);
+
     return Hash_Function_fnv1a(key, size);
 }
 bool Hash_Map_Default_Equality_Function(void *key_a, void *key_b, u64 size) {
+    ASSERT(key_a && key_b);
+
     return Mem_Eq(key_a, key_b, size);
 }
 
 
 u64 Hash_Map_Hash_String  (void *key, u64 size) {
+    ASSERT(key);
     ASSERT(size == sizeof(String));
 
     String *string = key;
     return Hash_Map_Default_Hash_Function(string->data, string->length);
 }
 bool Hash_Map_Eq_String(void *key_a, void *key_b, u64 size) {
+    ASSERT(key_a && key_b);
     ASSERT(size == sizeof(String));
 
     String *string_a = key_a;
@@ -2561,6 +2613,7 @@ bool Hash_Map_Eq_String(void *key_a, void *key_b, u64 size) {
 
 
 u64 Hash_Map_Hash_C_String  (void *key, u64 size) {
+    ASSERT(key);
     ASSERT(size == sizeof(const char *));
 
     const char **c_str = key;
@@ -2573,6 +2626,7 @@ u64 Hash_Map_Hash_C_String  (void *key, u64 size) {
     return Hash_Map_Default_Hash_Function(string.data, string.length);
 }
 bool Hash_Map_Eq_C_String(void *key_a, void *key_b, u64 size) {
+    ASSERT(key_a && key_b);
     ASSERT(size == sizeof(const char *));
 
     const char **c_str_a = key_a;
@@ -2586,6 +2640,10 @@ bool Hash_Map_Eq_C_String(void *key_a, void *key_b, u64 size) {
 
 
 u64 Hash_Function_fnv1a(void *key, u64 size) {
+    // its ok for the key to be NULL here,
+    // could be hashing a string or something
+    if (size > 0) ASSERT(key);
+
     // 64 bit offset_basis = 14695981039346656037
     const u64 FNV_offset = 14695981039346656037ULL;
     // 64 bit FNV_prime = 2^40 + 2^8 + 0xb3 = 1099511628211
