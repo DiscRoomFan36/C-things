@@ -6,7 +6,7 @@
 // Created  - 04/08/25
 // Modified - 21/04/26
 //
-// Version  - 0.2.4
+// Version  - 0.2.5
 //
 // Make sure to...
 //      #define BESTED_IMPLEMENTATION
@@ -1011,22 +1011,6 @@ typedef struct {
     })
 
 
-// clear the hash map, keep the memory.
-#define Hash_Map_Clear(hash_map)    Generic_Hash_Map_Clear((Generic_Hash_Map*)(hash_map), Get_Hash_Map_Type_Properties(hash_map))
-// free the memory used, only use if you haven't set an allocator.
-//
-// only free()'s the entries pointer,
-// you have to manage the other memory yourself.
-#define Hash_Map_Free(hash_map)     Generic_Hash_Map_Free((Generic_Hash_Map*)(hash_map))
-
-
-// reserve space for num_to_reserver *TOTAL* items,
-//
-// may PANIC() if your computer runs out of memory.
-#define Hash_Map_Reserve(hash_map, num_to_reserve)                      \
-    Generic_Hash_Map_Reserve((Generic_Hash_Map*)(hash_map), (num_to_reserve), Get_Hash_Map_Type_Properties(hash_map), Get_Source_Code_Location())
-
-
 // remove a key and value from hash map,
 //
 // returns weather or not the key was in the hash map.
@@ -1044,6 +1028,21 @@ typedef struct {
 // returns true if it was successful.
 #define Hash_Map_Remove_By_Value(hash_map, value_ptr)                   \
     Generic_Hash_Map_Remove_By_Value((Generic_Hash_Map*)(hash_map), value_ptr, Get_Hash_Map_Type_Properties(hash_map))
+
+
+// reserve space for num_to_reserver *TOTAL* items,
+//
+// may PANIC() if your computer runs out of memory.
+#define Hash_Map_Reserve(hash_map, num_to_reserve)                      \
+    Generic_Hash_Map_Reserve((Generic_Hash_Map*)(hash_map), (num_to_reserve), Get_Hash_Map_Type_Properties(hash_map), Get_Source_Code_Location())
+
+// clear the hash map, keep the memory.
+#define Hash_Map_Clear(hash_map)    Generic_Hash_Map_Clear((Generic_Hash_Map*)(hash_map), Get_Hash_Map_Type_Properties(hash_map))
+// free the memory used, only use if you haven't set an allocator.
+//
+// only free()'s the entries pointer,
+// you have to manage the other memory yourself.
+#define Hash_Map_Free(hash_map)     Generic_Hash_Map_Free((Generic_Hash_Map*)(hash_map))
 
 
 // return a pointer to the key for the value, please dont modify this.
