@@ -6,7 +6,7 @@
 // Created  - 04/08/25
 // Modified - 21/04/26
 //
-// Version  - 0.2.1
+// Version  - 0.2.2
 //
 // Make sure to...
 //      #define BESTED_IMPLEMENTATION
@@ -829,6 +829,12 @@ void Array_Shift(Generic_Array *array, Array_Item_Type_Properties_Struct item_pr
 // ===================================================
 //                Dynamic Hash_Map
 // ===================================================
+
+// how big the hashmap grows on the first insert.
+#ifndef HASH_MAP_INITAL_CAPACITY
+    #define HASH_MAP_INITAL_CAPACITY 32
+#endif
+
 
 // returns a hash of the key,
 // size is the size of the key type.
@@ -2327,9 +2333,6 @@ internal void Hash_Map_Maybe_Grow(Generic_Hash_Map *hash_map, u64 be_able_to_fit
 
     if (old_size == 0) ASSERT(old_entries == NULL);
     else               ASSERT(old_entries != NULL);
-
-    // TODO move this.
-    #define HASH_MAP_INITAL_CAPACITY 32
 
     // grow array capacity.
     hash_map->capacity = hash_map->capacity != 0 ? hash_map->capacity * 2 : HASH_MAP_INITAL_CAPACITY;
