@@ -38,7 +38,7 @@ int main(void) {
     Array_Add(&people, 1, false); // dangerous add.
     Array_Remove(&people, people.count-1, 1);
 
-    Array_For_Each(Person, p, &people) {
+    Array_For_Each(p, &people) {
         u64 i = p - people.items;
         printf("%ld: "S_Fmt", age: %.2f, %s\n", i, S_Arg(p->name), p->age, p->is_male ? "Male" : "Female");
     }

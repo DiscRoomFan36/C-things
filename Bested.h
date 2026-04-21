@@ -6,7 +6,7 @@
 // Created  - 04/08/25
 // Modified - 21/04/26
 //
-// Version  - 0.2.2
+// Version  - 0.2.3
 //
 // Make sure to...
 //      #define BESTED_IMPLEMENTATION
@@ -796,8 +796,8 @@ void Array_Shift(Generic_Array *array, Array_Item_Type_Properties_Struct item_pr
 
 
 // u64 index = it - array->items;
-#define Array_For_Each(type, it, array)                                             \
-    for (type *it = (array)->items; it < (array)->items + (array)->count; it++)
+#define Array_For_Each(it, array)                                             \
+    for (Typeof(*(array)->items) *it = (array)->items; it < (array)->items + (array)->count; it++)
 
 
 #define Array_Free(array)                   \
