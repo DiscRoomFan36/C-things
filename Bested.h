@@ -6,7 +6,7 @@
 // Created  - 04/08/25
 // Modified - 21/04/26
 //
-// Version  - 0.2.5
+// Version  - 0.2.6
 //
 // Make sure to...
 //      #define BESTED_IMPLEMENTATION
@@ -741,7 +741,7 @@ typedef struct {
 
 // might increase the capacity of the array,
 // array will be able to hold at least count elements.
-void Array_Maybe_Grow(Generic_Array *array, Array_Item_Type_Properties_Struct item_properties, u64 new_count, bool clear_to_zero, Source_Code_Location source_code_location);
+void Array_Maybe_Grow(Generic_Array *array, Array_Item_Type_Properties_Struct item_properties, u64 new_count, bool clear_to_zero, Source_Code_Location caller_location);
 
 // shifts the array left, why do i have this function?
 void Array_Shift(Generic_Array *array, Array_Item_Type_Properties_Struct item_properties, u64 from_index);
@@ -827,7 +827,7 @@ void Array_Shift(Generic_Array *array, Array_Item_Type_Properties_Struct item_pr
 
 
 // ===================================================
-//                Dynamic Hash_Map
+//                Dynamic Hash Map
 // ===================================================
 
 // how big the hashmap grows on the first insert.
@@ -2167,7 +2167,7 @@ void String_Builder_Free(String_Builder *sb) {
 //                Dynamic Arrays
 // ===================================================
 
-void Array_Maybe_Grow(Generic_Array *array, Array_Item_Type_Properties_Struct item_properties, u64 new_count, bool clear_to_zero, Source_Code_Location source_code_location) {
+void Array_Maybe_Grow(Generic_Array *array, Array_Item_Type_Properties_Struct item_properties, u64 new_count, bool clear_to_zero, Source_Code_Location caller_location) {
     ASSERT(array); // would be kinda weird.
 
     // if the new count is less, we dont need to do anything. not even clear anything.
@@ -2204,15 +2204,26 @@ void Array_Maybe_Grow(Generic_Array *array, Array_Item_Type_Properties_Struct it
             new_array = _Arena_Alloc(
                 array->allocator, item_properties.item_size * array->capacity,
                 (Arena_Alloc_Opt){.alignment = item_properties.item_align, .clear_to_zero = false, },
-                source_code_location
+                caller_location
             );
-            Mem_Copy(new_array, array->items, item_properties.item_size * array->count);
         } else {
             new_array = BESTED_ALIGNED_ALLOC(item_properties.item_align, item_properties.item_size * array->capacity);
-            Mem_Copy(new_array, array->items, item_properties.item_size * array->count);
-            BESTED_FREE(array->items);
         }
 
+        // malloc may return null, or the arena can be set
+        // to return NULL instead of panic'ing for an allocation.
+        //
+        // no nice way to handle this, and this situation
+        // is so rare, I dont care about it.
+        //
+        // eat this panic.
+        if (new_array == NULL) {
+            PANIC(SCL_Fmt" got null when trying to grow array", SCL_Arg(caller_location));
+        }
+
+        Mem_Copy(new_array, array->items, item_properties.item_size * array->count);
+
+        if (!array->allocator) BESTED_FREE(array->items);
         array->items = new_array;
     }
 
@@ -2225,6 +2236,8 @@ skip_allocation:
 
 
 void Array_Shift(Generic_Array *array, Array_Item_Type_Properties_Struct item_properties, u64 from_index) {
+    ASSERT(array); // would be kinda weird.
+
     Mem_Move(array->items, (u8*)array->items + from_index, (array->count - from_index) * item_properties.item_size);
     array->count -= from_index;
 }
@@ -2378,6 +2391,20 @@ internal void Hash_Map_Maybe_Grow(Generic_Hash_Map *hash_map, u64 be_able_to_fit
         hash_map->entries = BESTED_ALIGNED_ALLOC(properties.entry_alignment, hash_map->capacity * properties.entry_size);
         // remember to clear malloc memory.
         Mem_Zero(hash_map->entries, hash_map->capacity * properties.entry_size);
+    }
+
+    // arena's can be set so they dont panic when
+    // getting a NULL pointer from malloc,
+    //
+    // there is no neat way to say this function failed,
+    // so im just gonna panic here.
+    //
+    // if your in a situation where memory might run out,
+    // your machine is probably so low powered, a hash map
+    // wouldn't have that many items in it anyway.
+    // use a raw Arena instead.
+    if (hash_map->entries == NULL) {
+        PANIC(SCL_Fmt" got null pointer when trying to allocate memory for arena growth.", SCL_Arg(caller_location));
     }
 
     // reset fields that need resetting.
