@@ -6,7 +6,7 @@
 // Created  - 04/08/25
 // Modified - 21/04/26
 //
-// Version  - 0.2.6
+// Version  - 0.2.7
 //
 // Make sure to...
 //      #define BESTED_IMPLEMENTATION
@@ -448,14 +448,14 @@ void Arena_Set_To_Mark(Arena *arena, Arena_Mark mark);
 // Will do nothing if the first page is already created.
 //
 // If 'first_page_size_in_bytes' is set to 0, the default is used, see 'minimum_allocation_size' comment above.
-void _Arena_Initialize_First_Page(Arena *arena, u64 first_page_size_in_bytes, Source_Code_Location source_code_location);
+void _Arena_Initialize_First_Page(Arena *arena, u64 first_page_size_in_bytes, Source_Code_Location caller_location);
 #define Arena_Initialize_First_Page(arena, first_page_size_in_bytes)        \
     _Arena_Initialize_First_Page((arena), (first_page_size_in_bytes), Get_Source_Code_Location());
 
 
 // Care has been taken, so that when Arena_free is called,
 // the pointer to the buffer provided here will not be free'd.
-void _Arena_Add_Buffer_As_Storage_Space(Arena *arena, void *buffer, u64 buffer_size_in_bytes, Source_Code_Location source_code_location);
+void _Arena_Add_Buffer_As_Storage_Space(Arena *arena, void *buffer, u64 buffer_size_in_bytes, Source_Code_Location caller_location);
 
 #define Arena_Add_Buffer_As_Storage_Space(arena, buffer, buffer_size_in_bytes)     \
     _Arena_Add_Buffer_As_Storage_Space((arena), (buffer), (buffer_size_in_bytes), Get_Source_Code_Location())
@@ -1433,7 +1433,7 @@ void Arena_Set_To_Mark(Arena *arena, Arena_Mark mark) {
 }
 
 
-void _Arena_Initialize_First_Page(Arena *arena, u64 first_page_size_in_bytes, Source_Code_Location source_code_location) {
+void _Arena_Initialize_First_Page(Arena *arena, u64 first_page_size_in_bytes, Source_Code_Location caller_location) {
     if (arena->first != NULL) return;
 
     u64 tmp_min_alloc_size = arena->minimum_allocation_size;
@@ -1442,20 +1442,20 @@ void _Arena_Initialize_First_Page(Arena *arena, u64 first_page_size_in_bytes, So
     _Arena_Alloc(
         arena, 0,
         (Arena_Alloc_Opt){.alignment = Default_Alignment, .clear_to_zero = false, },
-        source_code_location
+        caller_location
     );
 
     arena->minimum_allocation_size = tmp_min_alloc_size;
 }
 
 
-void _Arena_Add_Buffer_As_Storage_Space(Arena *arena, void *buffer, u64 buffer_size_in_bytes, Source_Code_Location source_code_location) {
+void _Arena_Add_Buffer_As_Storage_Space(Arena *arena, void *buffer, u64 buffer_size_in_bytes, Source_Code_Location caller_location) {
     if (buffer == NULL) {
-        ARENA_PANIC(source_code_location, "Arena_Add_Buffer_As_Storeage_Space: buffer != NULL, why did you pass this to us.");
+        ARENA_PANIC(caller_location, "Arena_Add_Buffer_As_Storeage_Space: buffer != NULL, why did you pass this to us.");
         return;
     }
     if (buffer_size_in_bytes <= sizeof(Region)) {
-        ARENA_PANIC(source_code_location, "Arena_Add_Buffer_As_Storeage_Space: buffer_size_in_bytes <= sizeof(Region), The passed in buffer must be big enough to contain the Region, preferably much bigger");
+        ARENA_PANIC(caller_location, "Arena_Add_Buffer_As_Storeage_Space: buffer_size_in_bytes <= sizeof(Region), The passed in buffer must be big enough to contain the Region, preferably much bigger");
         return;
     }
 
@@ -1470,7 +1470,7 @@ void _Arena_Add_Buffer_As_Storage_Space(Arena *arena, void *buffer, u64 buffer_s
 
     if (arena->last == NULL) {
         if (arena->first != NULL) {
-            ARENA_PANIC(source_code_location, "Arena_Add_Buffer_As_Storeage_Space: arena->first != NULL, when arena->last == NULL, something went wrong internally");
+            ARENA_PANIC(caller_location, "Arena_Add_Buffer_As_Storeage_Space: arena->first != NULL, when arena->last == NULL, something went wrong internally");
         }
         arena->first = new_region;
         arena->last  = new_region;
