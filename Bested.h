@@ -4,13 +4,58 @@
 // Author   - Fletcher M
 //
 // Created  - 04/08/25
-// Modified - 21/04/26
+// Modified - 22/04/26
 //
-// Version  - 0.2.7
+// Version  - 1.0.0
 //
 // Make sure to...
 //      #define BESTED_IMPLEMENTATION
 // ...somewhere in your project
+
+
+
+//
+//                        A Note On Namespaceing
+//           (aka, why the Bested.h library is not namespaced)
+//
+// The normal way single header librarys in c are namespaced is by putting the
+// name of the library at the start of all function and macros, like stb_xxx
+// or in this case Bested_xxx.
+//
+// Some librarys even provide macros to strip the prefix of the functions and
+// macros, for ease of use, for example the nob.h library has a
+// NOB_STRIP_PREFIXES define, that turns functions like nob_cmd_append() into
+// cmd_append().
+//
+// So why doesn't this single header library do the same thing?
+//
+// Well... its for a bit of a silly reason, my editor (VSCode, dont laugh),
+// has a feature where if you hover over a identifier, it shows the definition
+// of that identifier, as well as the comments above the identifier. this is
+// extremely useful for when I'm inspecing my code.
+//
+// So if I where to pull the trick of having a BESTED_STRIP_PREFIXES (witch I
+// would use all the time, as Bested.h is suppost to be for my ease of use)
+// all of my cool comments, and function declarations in my tiny editor window
+// would just be gone, and the feature would just point to the macro that
+// strips the prefixes.
+//
+// A slight drop in developer ergonomics, that is compounded by the fact that
+// most "go to definition" features would also be messed up by this.
+// (Taking you to the macro again)
+//
+// So this library dose not do namespaceing.
+//
+// If this library collides with another library, figure it out yourself. Im
+// not sacrificing my experience to deal with some theoretical namespace
+// collision. The only collision I have encountered is the Clamp() macro with
+// raylib's Clamp() function, witch was handled by #undef'ing Bested.h's
+// Clamp(), its not that big of a deal.
+//
+// Also this library is free to modify, just change the function signature
+// yourself.
+//
+
 
 
 #ifdef __cplusplus
