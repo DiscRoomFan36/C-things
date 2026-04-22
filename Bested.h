@@ -6,7 +6,7 @@
 // Created  - 04/08/25
 // Modified - 22/04/26
 //
-// Version  - 1.1.0
+// Version  - 1.2.0
 //
 // Make sure to...
 //      #define BESTED_IMPLEMENTATION
@@ -550,194 +550,6 @@ void Pool_Free_Arenas(Arena_Pool *pool);
 
 
 // ===================================================
-//                       String
-// ===================================================
-
-// returns true if c is one of the ASCII whitespace characters.
-bool Is_Whitespace(char c);
-#define To_Upper(c) (('a' <= (c) && (c) <= 'z') ? ((c) - 'a' + 'A') : (c))
-#define To_Lower(c) (('A' <= (c) && (c) <= 'Z') ? ((c) - 'A' + 'a') : (c))
-
-
-typedef struct {
-    char *data;
-    u64 length;
-} String;
-
-
-// Formatting for printf()
-#define S_Fmt    "%.*s"
-#define S_Arg(s) (int) (s).length, (s).data
-
-String  String_From_C_Str(const char *str);
-#define S(c_str)    String_From_C_Str(c_str)
-
-
-// will use BESTED_MALLOC() if allocator is NULL
-const char *String_To_C_Str(String s, Arena *allocator);
-const char *temp_String_To_C_Str(String s);
-
-
-typedef struct {
-    // the allocator to use, will use BESTED_MALLOC() if null.
-    Arena* allocator;
-    // weather or not to null terminate the string.
-    bool null_terminate;
-} String_Duplicate_Opt;
-
-// if arena == NULL, uses BESTED_MALLOC.
-//
-// by default dose not null_terminate
-#define String_Duplicate(string, ...) _String_Duplicate((string), (String_Duplicate_Opt){ __VA_ARGS__ })
-String _String_Duplicate(String s, String_Duplicate_Opt opt);
-
-// in place.
-void    String_To_Upper(String *s);
-
-bool    String_Eq           (String s1, String s2);
-bool    String_Starts_With  (String s, String prefix);
-bool    String_Ends_With    (String s, String postfix);
-
-bool    String_Contains_Char        (String s, char c);
-// finds the first occurrence of c in s, -1 on failure
-s64     String_Find_Index_Of_Char   (String s, char c);
-// finds the first occurrence of needle in s, -1 on failure
-// if needle.size == 0, returns -1.
-s64     String_Find_Index_Of        (String s, String needle);
-
-// finds the line at index, and returns a String of the line, strips '\n'
-String  String_get_single_line(String s, u64 index);
-
-// advance the data, subtract the size, in place.
-// dose not check for null, or do any bounds checking. thats on you.
-void    String_Advance  (String *s, s64 count);
-// advance the data, subtract the size, returns a new copy.
-// dose not check for null, or do any bounds checking. thats on you.
-String  String_Advanced (String s, s64 count);
-
-typedef bool (*char_to_bool_func)(char);
-// remove ASCII whitespace characters from the right of the String.
-String  String_Trim_Right(String s);
-// returns a String with the front chopped off, according to the test function.
-// use Is_Whitespace to chop the whitespace off of the front.
-String  String_Chop_While(String s, char_to_bool_func test_char_function);
-
-
-String String_Path_to_Filename(String s);
-String String_Remove_Extention(String s);
-
-typedef enum {
-    SGNL_Remove_Comments = 1 << 0,
-    SGNL_Trim            = 1 << 1,
-    SGNL_Skip_Empty      = 1 << 2,
-    SGNL_All             = SGNL_Remove_Comments | SGNL_Trim | SGNL_Skip_Empty,
-} String_Get_Next_Line_Flag;
-
-// gets the next line in parseing, and advances parseing and line_num to match
-// bool's toggle removeing comments that start with '#',
-// trimming the output (from the right), and skiping over empty lines.
-//
-// 'result == parseing' signifies the end of the file.
-// OR result.size == 0 if skip_empty is toggled.
-String  String_Get_Next_Line(String *parseing, u64 *line_num, String_Get_Next_Line_Flag flags);
-
-
-const char *temp_sprintf       (const char *format, ...) __attribute__ ((format (printf, 1, 2)));
-// is null terminated
-String      temp_String_sprintf(const char *format, ...) __attribute__ ((format (printf, 1, 2)));
-
-
-
-// ===================================================
-//                    String Builder
-// ===================================================
-
-#define STRING_BUILDER_NUM_BUFFERS      32
-static_assert(Is_Pow_2(STRING_BUILDER_NUM_BUFFERS), "For Speed");
-
-// how much to alloc by default when a new segment of memory is needed.
-#ifndef STRING_BUILDER_BUFFER_DEFAULT_SIZE
-    // 4096 bytes is equal to the default page size in windows and linux. probably.
-    #define STRING_BUILDER_BUFFER_DEFAULT_SIZE      (4 * KILOBYTE)
-#endif
-
-// This macro is called when something goes wrong. Recommended to just use assert.
-//
-// If the macro dose nothing, (or doesn't exist,) the results of some operations
-// will return NULL/base values. or do no work at all. use at your own risk.
-#ifndef STRING_BUILDER_PANIC
-    #define STRING_BUILDER_PANIC(error_text)        ASSERT(false && error_text)
-#endif
-
-
-// String Builder internal structure
-// holds the segments of the being built string.
-typedef struct {
-    char *data;
-    u64 count;
-    u64 capacity;
-} Character_Buffer;
-
-// String Builder internal structure
-// Holds a bunch character buffers, and a pointer to the next Segment as well,
-// Acts like a linked list node.
-typedef struct Segment {
-    struct Segment *next;
-    Character_Buffer buffers[STRING_BUILDER_NUM_BUFFERS];
-} Segment;
-
-// A data-structure that can efficiently grow a string.
-// good for medium to large strings. small strings (< 4096 bytes) are not recommended, as this structure will allocate once.
-typedef struct String_Builder {
-    // how much to allocate when a new segment is needed.
-    u64 base_new_allocation;
-
-    // the current segment were working on.
-    // if its pointing to NULL, (aka you just zero initalized it), it will be set to a pointer to 'first_segment_holder'
-    Segment *current_segment;
-
-    // last buffer in use.
-    u64 buffer_index;
-    // the first in a linked list.
-    Segment first_segment_holder;
-
-    // set an allocator to use it to allocate, otherwise uses 'BESTED_MALLOC()'.
-    Arena *allocator;
-} String_Builder;
-
-
-// current size of the string being built.
-//
-// this calculation runs though all of the segments, so dont spam it maybe.
-u64 String_Builder_Count(String_Builder *sb);
-// how much space the builder has.
-// NOTE. some space will be wasted, for performance reasons.
-u64 String_Builder_Total_Capacity(String_Builder *sb);
-
-void String_Builder_Clear(String_Builder *sb);
-
-// Dose not check for NULL byte
-void String_Builder_Ptr_And_Size(String_Builder *sb, void *ptr, u64 size);
-// Dose not check for NULL byte
-void String_Builder_String(String_Builder *sb, String s);
-
-u64 String_Builder_printf(String_Builder *sb, const char *format, ...) __attribute__ ((format (printf, 2, 3)));
-
-#define String_Builder_Struct_Bytes(sb, struct_ptr) String_Builder_Ptr_And_Size((sb), (void*) (struct_ptr), sizeof(*(struct_ptr)))
-#define String_Builder_Array_Bytes(sb, ptr, count)  String_Builder_Ptr_And_Size((sb), (void*)(ptr), sizeof(*(ptr)) * (count))
-
-
-// A trailing NULL byte is appended, so you can pass it into functions that expect a C String
-String String_Builder_To_String(String_Builder *sb);
-
-// Dose not write a trailing NULL byte, (as apposed to SB_to_SV)
-void String_Builder_To_File(String_Builder *sb, FILE *file);
-
-// only call if your not useing an allocator.
-void String_Builder_Free(String_Builder *sb);
-
-
-// ===================================================
 //                    Dynamic Array
 // ===================================================
 
@@ -1179,6 +991,216 @@ bool Generic_Hash_Map_For_Each_Iterator_Next(Generic_Hash_Map *hash_map, void **
 
 
 
+// ===================================================
+//                       String
+// ===================================================
+
+// returns true if c is one of the ASCII whitespace characters.
+bool Is_Whitespace(char c);
+#define To_Upper(c) (('a' <= (c) && (c) <= 'z') ? ((c) - 'a' + 'A') : (c))
+#define To_Lower(c) (('A' <= (c) && (c) <= 'Z') ? ((c) - 'A' + 'a') : (c))
+
+
+typedef struct {
+    char *data;
+    u64 length;
+} String;
+
+typedef Array(String) String_Array;
+
+
+// Formatting for printf()
+#define S_Fmt    "%.*s"
+#define S_Arg(s) (int) (s).length, (s).data
+
+String  String_From_C_Str(const char *str);
+#define S(c_str)    String_From_C_Str(c_str)
+
+
+// will use BESTED_MALLOC() if allocator is NULL
+const char *String_To_C_Str(String s, Arena *allocator);
+const char *temp_String_To_C_Str(String s);
+
+
+typedef struct {
+    // the allocator to use, will use BESTED_MALLOC() if null.
+    Arena* allocator;
+    // weather or not to null terminate the string.
+    bool null_terminate;
+} String_Duplicate_Opt;
+
+// if arena == NULL, uses BESTED_MALLOC.
+//
+// by default dose not null_terminate
+#define String_Duplicate(string, ...) _String_Duplicate((string), (String_Duplicate_Opt){ __VA_ARGS__ })
+String _String_Duplicate(String s, String_Duplicate_Opt opt);
+
+// in place.
+void    String_To_Upper(String *s);
+
+bool    String_Eq           (String s1, String s2);
+bool    String_Starts_With  (String s, String prefix);
+bool    String_Ends_With    (String s, String postfix);
+
+bool    String_Contains_Char        (String s, char c);
+// finds the first occurrence of c in s, -1 on failure
+s64     String_Find_Index_Of_Char   (String s, char c);
+// finds the first occurrence of needle in s, -1 on failure
+// if needle.size == 0, returns -1.
+s64     String_Find_Index_Of        (String s, String needle);
+
+// finds the line at index, and returns a String of the line, strips '\n'
+String  String_get_single_line(String s, u64 index);
+
+// advance the data, subtract the size, in place.
+// dose not check for null, or do any bounds checking. thats on you.
+void    String_Advance  (String *s, s64 count);
+// advance the data, subtract the size, returns a new copy.
+// dose not check for null, or do any bounds checking. thats on you.
+String  String_Advanced (String s, s64 count);
+
+typedef bool (*char_to_bool_func)(char);
+// remove ASCII whitespace characters from the right of the String.
+String  String_Trim_Right(String s);
+// returns a String with the front chopped off, according to the test function.
+// use Is_Whitespace to chop the whitespace off of the front.
+String  String_Chop_While(String s, char_to_bool_func test_char_function);
+
+
+typedef struct {
+    // left side of the split, may be entire
+    // string if separator was not present.
+    String left;
+    // right side of the split. may be empty.
+    String right;
+    // weather the separator was in the string at all.
+    bool ok;
+} Split_Once_Result;
+
+// splits the string once.
+//
+// if the separator is not in the string, the left side
+// returns the whole string, and the right string is empty.
+Split_Once_Result Split_Once(String string, String separator);
+
+// appends the string split by separator parts into the result array.
+//
+// returns the number of sections.
+u64 String_Split_By(String string, String separator, String_Array *result);
+
+
+String String_Path_to_Filename(String s);
+String String_Remove_Extention(String s);
+
+typedef enum {
+    SGNL_Remove_Comments = 1 << 0,
+    SGNL_Trim            = 1 << 1,
+    SGNL_Skip_Empty      = 1 << 2,
+    SGNL_All             = SGNL_Remove_Comments | SGNL_Trim | SGNL_Skip_Empty,
+} String_Get_Next_Line_Flag;
+
+// gets the next line in parseing, and advances parseing and line_num to match
+// bool's toggle removeing comments that start with '#',
+// trimming the output (from the right), and skiping over empty lines.
+//
+// 'result == parseing' signifies the end of the file.
+// OR result.size == 0 if skip_empty is toggled.
+String  String_Get_Next_Line(String *parseing, u64 *line_num, String_Get_Next_Line_Flag flags);
+
+
+const char *temp_sprintf       (const char *format, ...) __attribute__ ((format (printf, 1, 2)));
+// is null terminated
+String      temp_String_sprintf(const char *format, ...) __attribute__ ((format (printf, 1, 2)));
+
+
+
+// ===================================================
+//                    String Builder
+// ===================================================
+
+#define STRING_BUILDER_NUM_BUFFERS      32
+static_assert(Is_Pow_2(STRING_BUILDER_NUM_BUFFERS), "For Speed");
+
+// how much to alloc by default when a new segment of memory is needed.
+#ifndef STRING_BUILDER_BUFFER_DEFAULT_SIZE
+    // 4096 bytes is equal to the default page size in windows and linux. probably.
+    #define STRING_BUILDER_BUFFER_DEFAULT_SIZE      (4 * KILOBYTE)
+#endif
+
+// This macro is called when something goes wrong. Recommended to just use assert.
+//
+// If the macro dose nothing, (or doesn't exist,) the results of some operations
+// will return NULL/base values. or do no work at all. use at your own risk.
+#ifndef STRING_BUILDER_PANIC
+    #define STRING_BUILDER_PANIC(error_text)        ASSERT(false && error_text)
+#endif
+
+
+// String Builder internal structure
+// holds the segments of the being built string.
+typedef struct {
+    char *data;
+    u64 count;
+    u64 capacity;
+} Character_Buffer;
+
+// String Builder internal structure
+// Holds a bunch character buffers, and a pointer to the next Segment as well,
+// Acts like a linked list node.
+typedef struct Segment {
+    struct Segment *next;
+    Character_Buffer buffers[STRING_BUILDER_NUM_BUFFERS];
+} Segment;
+
+// A data-structure that can efficiently grow a string.
+// good for medium to large strings. small strings (< 4096 bytes) are not recommended, as this structure will allocate once.
+typedef struct String_Builder {
+    // how much to allocate when a new segment is needed.
+    u64 base_new_allocation;
+
+    // the current segment were working on.
+    // if its pointing to NULL, (aka you just zero initalized it), it will be set to a pointer to 'first_segment_holder'
+    Segment *current_segment;
+
+    // last buffer in use.
+    u64 buffer_index;
+    // the first in a linked list.
+    Segment first_segment_holder;
+
+    // set an allocator to use it to allocate, otherwise uses 'BESTED_MALLOC()'.
+    Arena *allocator;
+} String_Builder;
+
+
+// current size of the string being built.
+//
+// this calculation runs though all of the segments, so dont spam it maybe.
+u64 String_Builder_Count(String_Builder *sb);
+// how much space the builder has.
+// NOTE. some space will be wasted, for performance reasons.
+u64 String_Builder_Total_Capacity(String_Builder *sb);
+
+void String_Builder_Clear(String_Builder *sb);
+
+// Dose not check for NULL byte
+void String_Builder_Ptr_And_Size(String_Builder *sb, void *ptr, u64 size);
+// Dose not check for NULL byte
+void String_Builder_String(String_Builder *sb, String s);
+
+u64 String_Builder_printf(String_Builder *sb, const char *format, ...) __attribute__ ((format (printf, 2, 3)));
+
+#define String_Builder_Struct_Bytes(sb, struct_ptr) String_Builder_Ptr_And_Size((sb), (void*) (struct_ptr), sizeof(*(struct_ptr)))
+#define String_Builder_Array_Bytes(sb, ptr, count)  String_Builder_Ptr_And_Size((sb), (void*)(ptr), sizeof(*(ptr)) * (count))
+
+
+// A trailing NULL byte is appended, so you can pass it into functions that expect a C String
+String String_Builder_To_String(String_Builder *sb);
+
+// Dose not write a trailing NULL byte, (as apposed to SB_to_SV)
+void String_Builder_To_File(String_Builder *sb, FILE *file);
+
+// only call if your not useing an allocator.
+void String_Builder_Free(String_Builder *sb);
 
 
 
@@ -1187,7 +1209,6 @@ bool Generic_Hash_Map_For_Each_Iterator_Next(Generic_Hash_Map *hash_map, void **
 // ===================================================
 
 // these are just useful, dont have to make these every single project.
-typedef Array(String) String_Array;
 typedef Array(s64)    Int_Array;
 
 
@@ -1690,521 +1711,6 @@ void Pool_Free_Arenas(Arena_Pool *pool) {
     // probably should change this behaviour if pool ever gets
     // any settings, like the arena has
     Mem_Zero_Struct(original_pool);
-}
-
-
-
-// ===================================================
-//                       String
-// ===================================================
-
-bool Is_Whitespace(char c) {
-    if (c == ' ' ) return true;
-    if (c == '\f') return true;
-    if (c == '\n') return true;
-    if (c == '\r') return true;
-    if (c == '\t') return true;
-    if (c == '\v') return true;
-    return false;
-}
-
-
-String String_From_C_Str(const char *str) {
-    String result = {
-        .data   = (char *) str,
-        .length = strlen(str),
-    };
-    return result;
-}
-const char *String_To_C_Str(String s, Arena *allocator) {
-    return String_Duplicate(s, .allocator = allocator, .null_terminate = true).data;
-}
-
-#define TEMP_STRING_TO_C_STR_NUM_BUFFERS    64
-#define TEMP_STRING_TO_C_STR_MAX_LENGTH     (4 * KILOBYTE)
-const char *temp_String_To_C_Str(String s) {
-    local_persist char buffers[TEMP_STRING_TO_C_STR_NUM_BUFFERS][TEMP_STRING_TO_C_STR_MAX_LENGTH];
-    local_persist u32  current_buffer_index = 0;
-
-    ASSERT(s.length + 1 < TEMP_STRING_TO_C_STR_MAX_LENGTH && "Your String is to big to fit into a temporary buffer");
-
-    char *buf = buffers[current_buffer_index];
-    current_buffer_index = (current_buffer_index + 1) % TEMP_STRING_TO_C_STR_NUM_BUFFERS;
-
-    Mem_Copy(buf, s.data, s.length);
-    buf[s.length] = 0;
-
-    return buf;
-}
-
-
-String _String_Duplicate(String s, String_Duplicate_Opt opt) {
-    String result = { .length = s.length, };
-    u64 alloc_size = s.length + (opt.null_terminate ? 1 : 0);
-    if (opt.allocator) {
-        result.data = (char*) Arena_Alloc(opt.allocator, alloc_size);
-    } else {
-        result.data = (char*) BESTED_MALLOC(alloc_size);
-    }
-    ASSERT(result.data);
-    Mem_Copy(result.data, s.data, result.length);
-    // dont need this because the Arena_Alloc dose it for us,
-    // but this assignment is kinda free. (the branch isn't though)
-    if (opt.null_terminate) result.data[result.length] = 0;
-    return result;
-}
-
-void String_To_Upper(String *s) {
-    for (u64 i = 0; i < s->length; i++) s->data[i] = To_Upper(s->data[i]);
-}
-
-bool String_Eq(String s1, String s2) {
-    if (s1.length != s2.length) return false;
-    return Mem_Eq(s1.data, s2.data, s1.length);
-}
-
-bool String_Starts_With(String s, String prefix) {
-    if (s.length < prefix.length) return false;
-    return Mem_Eq(s.data, prefix.data, prefix.length);
-}
-
-bool String_Ends_With(String s, String postfix) {
-    if (s.length < postfix.length) return false;
-    return Mem_Eq(s.data + s.length - postfix.length, postfix.data, postfix.length);
-}
-
-bool String_Contains_Char(String s, char c) {
-    for (u64 i = 0; i < s.length; i++) {
-        if (s.data[i] == c) return true;
-    }
-    return false;
-}
-
-s64 String_Find_Index_Of_Char(String s, char c) {
-    for (u64 i = 0; i < s.length; i++) {
-        // this could break if we have a string that is 2^63 characters long.
-        // oh the tragedy.
-        if (s.data[i] == c) return i;
-    }
-    return -1;
-}
-
-s64 String_Find_Index_Of(String s, String needle) {
-    if (needle.length == 0) return -1;
-
-    if (needle.length == 1) return String_Find_Index_Of_Char(s, needle.data[0]);
-
-    s64 absolute_index = 0;
-
-    while (true) {
-        s64 index = String_Find_Index_Of_Char(s, needle.data[0]);
-        if (index == -1) return -1;
-
-        absolute_index += index;
-
-        // check if not enough room for needle
-        if (s.length - index < needle.length) return -1;
-
-        bool flag = true;
-        for (u64 i = 1; i < needle.length; i++) {
-            if (s.data[index+i] != needle.data[i]) {
-                flag = false;
-                break;
-            }
-        }
-
-        if (flag) return absolute_index;
-
-        absolute_index += 1;
-
-        s.data   += index + 1;
-        s.length -= index + 1;
-
-
-    }
-
-    return -1;
-}
-
-String String_get_single_line(String s, u64 index) {
-    // clamp i if its to big. this handles a lot more errors than your thinking about.
-    if (index > s.length) index = s.length;
-
-    String result = String_Advanced(s, index);
-
-    s64 index_of_end = String_Find_Index_Of_Char(result, '\n');
-
-    // clamp the length to the far newline
-    if (index_of_end != -1) { result.length = index_of_end; }
-
-    // go back until newline before result.data,
-    // and make sure it doesn't go out of bounds
-    while (result.data != s.data && result.data[-1] != '\n') {
-        String_Advance(&result, -1);
-    }
-
-    return result;
-}
-
-void   String_Advance (String *s, s64 count) {
-    // don't do anything to null strings.
-    if (s->data == NULL) return;
-    // don't go over the length
-    if ((s64)s->length < count) {
-        String_Advance(s, s->length); // this'll get compiled out.
-    } else {
-        s->data   += count;
-        s->length -= count;
-    }
-}
-String String_Advanced(String s, s64 count) {
-    String_Advance(&s, count);
-    return s;
-}
-
-String String_Trim_Right(String s) {
-    while (s.length > 0 && Is_Whitespace(s.data[s.length-1])) {
-        s.length -= 1;
-    }
-    return s;
-}
-
-String String_Chop_While(String s, char_to_bool_func test_char_function) {
-    u64 i;
-    for (i = 0; i < s.length; i++) {
-        if (!test_char_function(s.data[i])) break;
-    }
-    return String_Advanced(s, (s64)i);
-}
-
-String String_Path_to_Filename(String s) {
-    while (true) {
-        s64 index = String_Find_Index_Of_Char(s, '/');
-        if (index == -1) break;
-        String_Advance(&s, index+1);
-    }
-    return s;
-}
-
-String String_Remove_Extention(String s) {
-    for (s64 i = s.length; i >= 0; i--) {
-        if (s.data[i] == '.') {
-            s.length = i;
-            return s;
-        }
-    }
-    return s;
-}
-
-
-String String_Get_Next_Line(String *parseing, u64 *line_num, String_Get_Next_Line_Flag flags) {
-    bool remove_comments = Flag_Exists(flags, SGNL_Remove_Comments);
-    bool trim            = Flag_Exists(flags, SGNL_Trim);
-    bool skip_empty      = Flag_Exists(flags, SGNL_Skip_Empty);
-
-    String next_line = *parseing;
-
-    while (parseing->length > 0) {
-        s64 line_end = String_Find_Index_Of_Char(*parseing, '\n');
-
-        next_line = *parseing;
-
-        if (line_end != -1) {
-            next_line.length = (u64)line_end;
-            String_Advance(parseing, line_end+1);
-        } else {
-            String_Advance(parseing, (s64)parseing->length);
-        }
-
-        if (line_num) *line_num += 1;
-
-        if (remove_comments) {
-            s64 comment_index = String_Find_Index_Of(next_line, S("//"));
-            if (comment_index != -1) { next_line.length = (u64)comment_index; }
-        }
-
-        if (trim) next_line = String_Trim_Right(next_line);
-
-        if ((!skip_empty) || (next_line.length > 0)) break;
-    }
-
-    return next_line;
-}
-
-
-#define TEMP_SPRINTF_NUM_BUFFERS    (1<<6)
-static_assert(Is_Pow_2(TEMP_SPRINTF_NUM_BUFFERS), "for well defined wrapping behaviour");
-
-#define TEMP_SPRINTF_BUFFER_SIZE    512 // pretty sure this number is related to page size...
-
-const char *temp_sprintf(const char *format, ...) {
-    local_persist char          buffers[TEMP_SPRINTF_NUM_BUFFERS][TEMP_SPRINTF_BUFFER_SIZE];
-    local_persist Atomic(u32)   current_buffer_index = 0;
-
-    u32 buffer_index = Atomic_Add(&current_buffer_index, 1);
-    char *buf = buffers[buffer_index % Array_Len(buffers)];
-
-    va_list args;
-    va_start(args, format);
-        vsnprintf(buf, sizeof(buffers[0]), format, args);
-    va_end(args);
-
-    return buf;
-}
-
-String temp_String_sprintf(const char *format, ...) {
-    local_persist char          buffers[TEMP_SPRINTF_NUM_BUFFERS][TEMP_SPRINTF_BUFFER_SIZE];
-    local_persist Atomic(u32)   current_buffer_index = 0;
-
-    u32 buffer_index = Atomic_Add(&current_buffer_index, 1);
-    char *buf = buffers[buffer_index % Array_Len(buffers)];
-
-    va_list args;
-    va_start(args, format);
-        vsnprintf(buf, sizeof(buffers[0]), format, args);
-    va_end(args);
-
-    // could be faster because we know how long it is. but w/e
-    return String_From_C_Str(buf);
-}
-
-
-
-// ===================================================
-//                    String Builder
-// ===================================================
-
-internal Character_Buffer *String_Builder_Internal_Maybe_Expand_To_Fit(String_Builder *sb, u64 size) {
-    // set the current segment to the first segment if its null (aka just after zero initialization)
-    if (sb->current_segment == NULL) sb->current_segment = &sb->first_segment_holder;
-
-    Character_Buffer *last_buffer = &sb->current_segment->buffers[sb->buffer_index % STRING_BUILDER_NUM_BUFFERS];
-    while (true) {
-        // if the segment hasn't been allocated
-        if (last_buffer->capacity == 0) break;
-
-        // if the segent has enough room to hold the new thing
-        if (size + last_buffer->count <= last_buffer->capacity) break;
-
-        // else move onto the next segment
-        sb->buffer_index += 1;
-
-        if (sb->buffer_index % STRING_BUILDER_NUM_BUFFERS == 0) {
-            if (!sb->current_segment->next) {
-                if (sb->allocator) {
-                    sb->current_segment->next = (Segment*) Arena_Alloc_Struct(sb->allocator, Segment);
-                } else {
-                    sb->current_segment->next = (Segment*) BESTED_MALLOC(sizeof(Segment));
-                    Mem_Zero(sb->current_segment->next, sizeof(Segment));
-                }
-
-                if (!sb->current_segment->next) {
-                    STRING_BUILDER_PANIC("String Builder - maybe_expand_to_fit: failed to malloc a new segment holder");
-                    return NULL;
-                }
-            }
-
-            sb->current_segment = sb->current_segment->next;
-        }
-
-        last_buffer = &sb->current_segment->buffers[sb->buffer_index % STRING_BUILDER_NUM_BUFFERS];
-    }
-
-
-    if (last_buffer->capacity == 0) {
-        u64 default_size = sb->base_new_allocation ? sb->base_new_allocation : STRING_BUILDER_BUFFER_DEFAULT_SIZE;
-        u64 to_add_size = Max(size, default_size);
-
-        if (sb->allocator) {
-            last_buffer->data = (char*) Arena_Alloc(sb->allocator, to_add_size * sizeof(char), .clear_to_zero = true);
-            // last_buffer->data = (char*) Arena_Alloc_Clear(sb->allocator, to_add_size * sizeof(char), true);
-        } else {
-            last_buffer->data = (char*) BESTED_MALLOC(to_add_size * sizeof(char));
-            Mem_Zero(last_buffer->data, to_add_size * sizeof(char));
-        }
-
-        if (!last_buffer->data) {
-            STRING_BUILDER_PANIC("maybe_expand_to_fit: failed to malloc a new segment with to_add_size");
-            return NULL;
-        }
-
-        last_buffer->count = 0;
-        last_buffer->capacity = to_add_size;
-    }
-
-    return last_buffer;
-}
-
-// this is not the most efficient thing ever.
-// O(n^2) when looping over the entire array like this...
-// but it will probably never come up as a performance problem.
-internal inline Character_Buffer *String_Builder_Internal_Get_Character_Buffer_At_Index(String_Builder *sb, u64 buffer_index) {
-    Segment *segment = &sb->first_segment_holder;
-    while (buffer_index >= STRING_BUILDER_NUM_BUFFERS) {
-        buffer_index -= STRING_BUILDER_NUM_BUFFERS;
-        segment = segment->next;
-    }
-    return &segment->buffers[buffer_index];
-}
-
-
-u64 String_Builder_Count(String_Builder *sb) {
-    u64 count = 0;
-    for (u64 i = 0; i <= sb->buffer_index; i++) {
-        Character_Buffer *buffer = String_Builder_Internal_Get_Character_Buffer_At_Index(sb, i);
-        count += buffer->count;
-    }
-    return count;
-}
-
-u64 String_Builder_Total_Capacity(String_Builder *sb) {
-    u64 capacity = 0;
-    Segment *current_segment = &sb->first_segment_holder;
-    while (current_segment) {
-        for (u32 i = 0; i < STRING_BUILDER_NUM_BUFFERS; i++) {
-            Character_Buffer *buffer = &current_segment->buffers[i];
-            capacity += buffer->capacity;
-        }
-        current_segment = current_segment->next;
-    }
-    return capacity;
-}
-
-void String_Builder_Clear(String_Builder *sb) {
-    for (u64 i = 0; i <= sb->buffer_index; i++) {
-        Character_Buffer *buffer = String_Builder_Internal_Get_Character_Buffer_At_Index(sb, i);
-        buffer->count = 0;
-    }
-
-    sb->buffer_index = 0;
-    sb->current_segment  = &sb->first_segment_holder;
-}
-
-void String_Builder_Ptr_And_Size(String_Builder *sb, void *ptr, u64 size) {
-    if (size == 0) return;
-
-    Character_Buffer *buffer = String_Builder_Internal_Maybe_Expand_To_Fit(sb, size);
-
-    if (!buffer) return; // String_Builder_Internal_Maybe_Expand_To_Fit() has already raised the panic.
-
-    Mem_Copy(buffer->data + buffer->count, ptr, size);
-    buffer->count += size;
-}
-
-void String_Builder_String(String_Builder *sb, String s) {
-    String_Builder_Ptr_And_Size(sb, s.data, s.length);
-}
-
-u64 String_Builder_printf(String_Builder *sb, const char *format, ...) {
-    va_list args;
-    va_start(args, format);
-        // TODO figure out how to do the thing we did in Arena.h for its sprintf
-        s32 formatted_size = vsnprintf(NULL, 0, format, args);
-    va_end(args);
-
-    // < 0 is an error from printf
-    ASSERT(formatted_size >= 0);
-
-    // early out.
-    if (formatted_size == 0) return 0;
-
-    // +1 because printf also puts a trailing '\0' byte.
-    // we ignore that for the rest of the code.
-    Character_Buffer *buffer = String_Builder_Internal_Maybe_Expand_To_Fit(sb, (u64)formatted_size+1);
-
-    if (!buffer) return 0; // maybe_expand_to_fit has already raised the panic.
-
-    va_start(args, format);
-        vsprintf(buffer->data + buffer->count, format, args);
-    va_end(args);
-
-    buffer->count += (u64)formatted_size;
-    return (u64)formatted_size;
-}
-
-String String_Builder_To_String(String_Builder *sb) {
-    u64 count = String_Builder_Count(sb);
-
-    String result = {
-        .data   = NULL,
-        .length = count,
-    };
-
-    if (sb->allocator) {
-        result.data = (char*) Arena_Alloc(sb->allocator, count+1, .clear_to_zero = false);
-        // result.data = (char*) Arena_Alloc_Clear(sb->allocator, count+1, false);
-    } else {
-        result.data = (char*) BESTED_MALLOC(count+1);
-    }
-
-    if (!result.data) {
-        STRING_BUILDER_PANIC("Arena_Alloc failed when trying to allocate enough memory to hold to result string from String_Builder_To_String()");
-        result.length = 0;
-        return result;
-    }
-
-    u64 index = 0;
-    for (u64 i = 0; i <= sb->buffer_index; i++) {
-        Character_Buffer *buffer = String_Builder_Internal_Get_Character_Buffer_At_Index(sb, i);
-        Mem_Copy(result.data + index, buffer->data, buffer->count);
-        index += buffer->count;
-    }
-
-    result.data[result.length] = 0;
-    return result;
-}
-
-void String_Builder_To_File(String_Builder *sb, FILE *file) {
-    for (u64 i = 0; i <= sb->buffer_index; i++) {
-        Character_Buffer *buffer = String_Builder_Internal_Get_Character_Buffer_At_Index(sb, i);
-        fwrite(buffer->data, sizeof(char), buffer->count, file);
-    }
-}
-
-void String_Builder_Free(String_Builder *sb) {
-    if (sb->allocator) {
-            fprintf(stderr, "=======================================================================================\n");
-            fprintf(stderr, "Are you serious?\n");
-            fprintf(stderr, "\n");
-            fprintf(stderr, "Did you just attempt to free a string buffer that was allready given an allocator?\n");
-            fprintf(stderr, "Not just any allocator either, the only thing string builders accept are arena allocators.\n");
-            fprintf(stderr, "\n");
-            fprintf(stderr, "You know I do this for you right?\n");
-            fprintf(stderr, "I give you all these tools and this is what you do with it?\n");
-            fprintf(stderr, "Make a mistake that could have easily been ignored, look into this function you just called.\n");
-            fprintf(stderr, "I can check if you have an allocator and just ignore it, but I wont.\n");
-            fprintf(stderr, "\n");
-            fprintf(stderr, "I'm not gonna even ASSERT(false).\n");
-            fprintf(stderr, "I'm gonna let the segmentation falt, or the subtle memory bug do the talking for me.\n");
-            fprintf(stderr, "\n");
-            fprintf(stderr, "I hope you have a terrible day.\n");
-            fprintf(stderr, "=======================================================================================\n");
-    }
-
-    Segment *segment = &sb->first_segment_holder;
-    bool first_segment = true;
-
-    while (segment) {
-        for (u32 i = 0; i < STRING_BUILDER_NUM_BUFFERS; i++) {
-            Character_Buffer *buffer = &segment->buffers[i];
-            if (buffer->data) BESTED_FREE(buffer->data);
-
-            // only matters if its the first segment.
-            buffer->count    = 0;
-            buffer->capacity = 0;
-            buffer->data     = NULL;
-        }
-
-        Segment *next_segment = segment->next;
-
-        if (!first_segment) BESTED_FREE(segment);
-        first_segment = false;
-
-        segment = next_segment;
-    }
-
-    sb->first_segment_holder.next = NULL;
-    sb->current_segment = &sb->first_segment_holder;
 }
 
 
@@ -2757,6 +2263,560 @@ u64 Hash_Function_fnv1a(void *key, u64 size) {
         hash = (hash ^ u8_ptr[i]) * FNV_prime;
     }
     return hash;
+}
+
+
+
+// ===================================================
+//                       String
+// ===================================================
+
+bool Is_Whitespace(char c) {
+    if (c == ' ' ) return true;
+    if (c == '\f') return true;
+    if (c == '\n') return true;
+    if (c == '\r') return true;
+    if (c == '\t') return true;
+    if (c == '\v') return true;
+    return false;
+}
+
+
+String String_From_C_Str(const char *str) {
+    String result = {
+        .data   = (char *) str,
+        .length = strlen(str),
+    };
+    return result;
+}
+const char *String_To_C_Str(String s, Arena *allocator) {
+    return String_Duplicate(s, .allocator = allocator, .null_terminate = true).data;
+}
+
+#define TEMP_STRING_TO_C_STR_NUM_BUFFERS    64
+#define TEMP_STRING_TO_C_STR_MAX_LENGTH     (4 * KILOBYTE)
+const char *temp_String_To_C_Str(String s) {
+    local_persist char buffers[TEMP_STRING_TO_C_STR_NUM_BUFFERS][TEMP_STRING_TO_C_STR_MAX_LENGTH];
+    local_persist u32  current_buffer_index = 0;
+
+    ASSERT(s.length + 1 < TEMP_STRING_TO_C_STR_MAX_LENGTH && "Your String is to big to fit into a temporary buffer");
+
+    char *buf = buffers[current_buffer_index];
+    current_buffer_index = (current_buffer_index + 1) % TEMP_STRING_TO_C_STR_NUM_BUFFERS;
+
+    Mem_Copy(buf, s.data, s.length);
+    buf[s.length] = 0;
+
+    return buf;
+}
+
+
+String _String_Duplicate(String s, String_Duplicate_Opt opt) {
+    String result = { .length = s.length, };
+    u64 alloc_size = s.length + (opt.null_terminate ? 1 : 0);
+    if (opt.allocator) {
+        result.data = (char*) Arena_Alloc(opt.allocator, alloc_size);
+    } else {
+        result.data = (char*) BESTED_MALLOC(alloc_size);
+    }
+    ASSERT(result.data);
+    Mem_Copy(result.data, s.data, result.length);
+    // dont need this because the Arena_Alloc dose it for us,
+    // but this assignment is kinda free. (the branch isn't though)
+    if (opt.null_terminate) result.data[result.length] = 0;
+    return result;
+}
+
+void String_To_Upper(String *s) {
+    for (u64 i = 0; i < s->length; i++) s->data[i] = To_Upper(s->data[i]);
+}
+
+bool String_Eq(String s1, String s2) {
+    if (s1.length != s2.length) return false;
+    return Mem_Eq(s1.data, s2.data, s1.length);
+}
+
+bool String_Starts_With(String s, String prefix) {
+    if (s.length < prefix.length) return false;
+    return Mem_Eq(s.data, prefix.data, prefix.length);
+}
+
+bool String_Ends_With(String s, String postfix) {
+    if (s.length < postfix.length) return false;
+    return Mem_Eq(s.data + s.length - postfix.length, postfix.data, postfix.length);
+}
+
+bool String_Contains_Char(String s, char c) {
+    for (u64 i = 0; i < s.length; i++) {
+        if (s.data[i] == c) return true;
+    }
+    return false;
+}
+
+s64 String_Find_Index_Of_Char(String s, char c) {
+    for (u64 i = 0; i < s.length; i++) {
+        // this could break if we have a string that is 2^63 characters long.
+        // oh the tragedy.
+        if (s.data[i] == c) return i;
+    }
+    return -1;
+}
+
+s64 String_Find_Index_Of(String s, String needle) {
+    if (needle.length == 0) return -1;
+
+    if (needle.length == 1) return String_Find_Index_Of_Char(s, needle.data[0]);
+
+    s64 absolute_index = 0;
+
+    while (true) {
+        s64 index = String_Find_Index_Of_Char(s, needle.data[0]);
+        if (index == -1) return -1;
+
+        absolute_index += index;
+
+        // check if not enough room for needle
+        if (s.length - index < needle.length) return -1;
+
+        bool flag = true;
+        for (u64 i = 1; i < needle.length; i++) {
+            if (s.data[index+i] != needle.data[i]) {
+                flag = false;
+                break;
+            }
+        }
+
+        if (flag) return absolute_index;
+
+        absolute_index += 1;
+
+        s.data   += index + 1;
+        s.length -= index + 1;
+
+
+    }
+
+    return -1;
+}
+
+String String_get_single_line(String s, u64 index) {
+    // clamp i if its to big. this handles a lot more errors than your thinking about.
+    if (index > s.length) index = s.length;
+
+    String result = String_Advanced(s, index);
+
+    s64 index_of_end = String_Find_Index_Of_Char(result, '\n');
+
+    // clamp the length to the far newline
+    if (index_of_end != -1) { result.length = index_of_end; }
+
+    // go back until newline before result.data,
+    // and make sure it doesn't go out of bounds
+    while (result.data != s.data && result.data[-1] != '\n') {
+        String_Advance(&result, -1);
+    }
+
+    return result;
+}
+
+void   String_Advance (String *s, s64 count) {
+    // don't do anything to null strings.
+    if (s->data == NULL) return;
+    // don't go over the length
+    if ((s64)s->length < count) {
+        String_Advance(s, s->length); // this'll get compiled out.
+    } else {
+        s->data   += count;
+        s->length -= count;
+    }
+}
+String String_Advanced(String s, s64 count) {
+    String_Advance(&s, count);
+    return s;
+}
+
+String String_Trim_Right(String s) {
+    while (s.length > 0 && Is_Whitespace(s.data[s.length-1])) {
+        s.length -= 1;
+    }
+    return s;
+}
+
+String String_Chop_While(String s, char_to_bool_func test_char_function) {
+    u64 i;
+    for (i = 0; i < s.length; i++) {
+        if (!test_char_function(s.data[i])) break;
+    }
+    return String_Advanced(s, (s64)i);
+}
+
+
+Split_Once_Result Split_Once(String string, String separator) {
+    s64 index = String_Find_Index_Of(string, separator);
+
+    if (index == -1) {
+        Split_Once_Result result = {
+            .left  = string,
+            .right = ZEROED,
+            .ok    = false,
+        };
+        return result;
+    } else {
+        Split_Once_Result result = {
+            .left  = { .data = string.data, .length = index },
+            .right = {
+                .data   = string.data   +  index + separator.length ,
+                .length = string.length - (index + separator.length),
+            },
+            .ok    = true,
+        };
+        return result;
+    }
+}
+
+
+u64 String_Split_By(String string, String separator, String_Array *result) {
+    u64 split_count = 0;
+    while (string.length > 0) {
+        split_count += 1;
+        Split_Once_Result split = Split_Once(string, separator);
+
+        Array_Append(result, split.left);
+        string = split.right;
+    }
+    return split_count;
+}
+
+
+
+String String_Path_to_Filename(String s) {
+    while (true) {
+        s64 index = String_Find_Index_Of_Char(s, '/');
+        if (index == -1) break;
+        String_Advance(&s, index+1);
+    }
+    return s;
+}
+
+String String_Remove_Extention(String s) {
+    for (s64 i = s.length; i >= 0; i--) {
+        if (s.data[i] == '.') {
+            s.length = i;
+            return s;
+        }
+    }
+    return s;
+}
+
+
+String String_Get_Next_Line(String *parseing, u64 *line_num, String_Get_Next_Line_Flag flags) {
+    bool remove_comments = Flag_Exists(flags, SGNL_Remove_Comments);
+    bool trim            = Flag_Exists(flags, SGNL_Trim);
+    bool skip_empty      = Flag_Exists(flags, SGNL_Skip_Empty);
+
+    String next_line = *parseing;
+
+    while (parseing->length > 0) {
+        s64 line_end = String_Find_Index_Of_Char(*parseing, '\n');
+
+        next_line = *parseing;
+
+        if (line_end != -1) {
+            next_line.length = (u64)line_end;
+            String_Advance(parseing, line_end+1);
+        } else {
+            String_Advance(parseing, (s64)parseing->length);
+        }
+
+        if (line_num) *line_num += 1;
+
+        if (remove_comments) {
+            s64 comment_index = String_Find_Index_Of(next_line, S("//"));
+            if (comment_index != -1) { next_line.length = (u64)comment_index; }
+        }
+
+        if (trim) next_line = String_Trim_Right(next_line);
+
+        if ((!skip_empty) || (next_line.length > 0)) break;
+    }
+
+    return next_line;
+}
+
+
+#define TEMP_SPRINTF_NUM_BUFFERS    (1<<6)
+static_assert(Is_Pow_2(TEMP_SPRINTF_NUM_BUFFERS), "for well defined wrapping behaviour");
+
+#define TEMP_SPRINTF_BUFFER_SIZE    512 // pretty sure this number is related to page size...
+
+const char *temp_sprintf(const char *format, ...) {
+    local_persist char          buffers[TEMP_SPRINTF_NUM_BUFFERS][TEMP_SPRINTF_BUFFER_SIZE];
+    local_persist Atomic(u32)   current_buffer_index = 0;
+
+    u32 buffer_index = Atomic_Add(&current_buffer_index, 1);
+    char *buf = buffers[buffer_index % Array_Len(buffers)];
+
+    va_list args;
+    va_start(args, format);
+        vsnprintf(buf, sizeof(buffers[0]), format, args);
+    va_end(args);
+
+    return buf;
+}
+
+String temp_String_sprintf(const char *format, ...) {
+    local_persist char          buffers[TEMP_SPRINTF_NUM_BUFFERS][TEMP_SPRINTF_BUFFER_SIZE];
+    local_persist Atomic(u32)   current_buffer_index = 0;
+
+    u32 buffer_index = Atomic_Add(&current_buffer_index, 1);
+    char *buf = buffers[buffer_index % Array_Len(buffers)];
+
+    va_list args;
+    va_start(args, format);
+        vsnprintf(buf, sizeof(buffers[0]), format, args);
+    va_end(args);
+
+    // could be faster because we know how long it is. but w/e
+    return String_From_C_Str(buf);
+}
+
+
+
+// ===================================================
+//                    String Builder
+// ===================================================
+
+internal Character_Buffer *String_Builder_Internal_Maybe_Expand_To_Fit(String_Builder *sb, u64 size) {
+    // set the current segment to the first segment if its null (aka just after zero initialization)
+    if (sb->current_segment == NULL) sb->current_segment = &sb->first_segment_holder;
+
+    Character_Buffer *last_buffer = &sb->current_segment->buffers[sb->buffer_index % STRING_BUILDER_NUM_BUFFERS];
+    while (true) {
+        // if the segment hasn't been allocated
+        if (last_buffer->capacity == 0) break;
+
+        // if the segent has enough room to hold the new thing
+        if (size + last_buffer->count <= last_buffer->capacity) break;
+
+        // else move onto the next segment
+        sb->buffer_index += 1;
+
+        if (sb->buffer_index % STRING_BUILDER_NUM_BUFFERS == 0) {
+            if (!sb->current_segment->next) {
+                if (sb->allocator) {
+                    sb->current_segment->next = (Segment*) Arena_Alloc_Struct(sb->allocator, Segment);
+                } else {
+                    sb->current_segment->next = (Segment*) BESTED_MALLOC(sizeof(Segment));
+                    Mem_Zero(sb->current_segment->next, sizeof(Segment));
+                }
+
+                if (!sb->current_segment->next) {
+                    STRING_BUILDER_PANIC("String Builder - maybe_expand_to_fit: failed to malloc a new segment holder");
+                    return NULL;
+                }
+            }
+
+            sb->current_segment = sb->current_segment->next;
+        }
+
+        last_buffer = &sb->current_segment->buffers[sb->buffer_index % STRING_BUILDER_NUM_BUFFERS];
+    }
+
+
+    if (last_buffer->capacity == 0) {
+        u64 default_size = sb->base_new_allocation ? sb->base_new_allocation : STRING_BUILDER_BUFFER_DEFAULT_SIZE;
+        u64 to_add_size = Max(size, default_size);
+
+        if (sb->allocator) {
+            last_buffer->data = (char*) Arena_Alloc(sb->allocator, to_add_size * sizeof(char), .clear_to_zero = true);
+            // last_buffer->data = (char*) Arena_Alloc_Clear(sb->allocator, to_add_size * sizeof(char), true);
+        } else {
+            last_buffer->data = (char*) BESTED_MALLOC(to_add_size * sizeof(char));
+            Mem_Zero(last_buffer->data, to_add_size * sizeof(char));
+        }
+
+        if (!last_buffer->data) {
+            STRING_BUILDER_PANIC("maybe_expand_to_fit: failed to malloc a new segment with to_add_size");
+            return NULL;
+        }
+
+        last_buffer->count = 0;
+        last_buffer->capacity = to_add_size;
+    }
+
+    return last_buffer;
+}
+
+// this is not the most efficient thing ever.
+// O(n^2) when looping over the entire array like this...
+// but it will probably never come up as a performance problem.
+internal inline Character_Buffer *String_Builder_Internal_Get_Character_Buffer_At_Index(String_Builder *sb, u64 buffer_index) {
+    Segment *segment = &sb->first_segment_holder;
+    while (buffer_index >= STRING_BUILDER_NUM_BUFFERS) {
+        buffer_index -= STRING_BUILDER_NUM_BUFFERS;
+        segment = segment->next;
+    }
+    return &segment->buffers[buffer_index];
+}
+
+
+u64 String_Builder_Count(String_Builder *sb) {
+    u64 count = 0;
+    for (u64 i = 0; i <= sb->buffer_index; i++) {
+        Character_Buffer *buffer = String_Builder_Internal_Get_Character_Buffer_At_Index(sb, i);
+        count += buffer->count;
+    }
+    return count;
+}
+
+u64 String_Builder_Total_Capacity(String_Builder *sb) {
+    u64 capacity = 0;
+    Segment *current_segment = &sb->first_segment_holder;
+    while (current_segment) {
+        for (u32 i = 0; i < STRING_BUILDER_NUM_BUFFERS; i++) {
+            Character_Buffer *buffer = &current_segment->buffers[i];
+            capacity += buffer->capacity;
+        }
+        current_segment = current_segment->next;
+    }
+    return capacity;
+}
+
+void String_Builder_Clear(String_Builder *sb) {
+    for (u64 i = 0; i <= sb->buffer_index; i++) {
+        Character_Buffer *buffer = String_Builder_Internal_Get_Character_Buffer_At_Index(sb, i);
+        buffer->count = 0;
+    }
+
+    sb->buffer_index = 0;
+    sb->current_segment  = &sb->first_segment_holder;
+}
+
+void String_Builder_Ptr_And_Size(String_Builder *sb, void *ptr, u64 size) {
+    if (size == 0) return;
+
+    Character_Buffer *buffer = String_Builder_Internal_Maybe_Expand_To_Fit(sb, size);
+
+    if (!buffer) return; // String_Builder_Internal_Maybe_Expand_To_Fit() has already raised the panic.
+
+    Mem_Copy(buffer->data + buffer->count, ptr, size);
+    buffer->count += size;
+}
+
+void String_Builder_String(String_Builder *sb, String s) {
+    String_Builder_Ptr_And_Size(sb, s.data, s.length);
+}
+
+u64 String_Builder_printf(String_Builder *sb, const char *format, ...) {
+    va_list args;
+    va_start(args, format);
+        // TODO figure out how to do the thing we did in Arena.h for its sprintf
+        s32 formatted_size = vsnprintf(NULL, 0, format, args);
+    va_end(args);
+
+    // < 0 is an error from printf
+    ASSERT(formatted_size >= 0);
+
+    // early out.
+    if (formatted_size == 0) return 0;
+
+    // +1 because printf also puts a trailing '\0' byte.
+    // we ignore that for the rest of the code.
+    Character_Buffer *buffer = String_Builder_Internal_Maybe_Expand_To_Fit(sb, (u64)formatted_size+1);
+
+    if (!buffer) return 0; // maybe_expand_to_fit has already raised the panic.
+
+    va_start(args, format);
+        vsprintf(buffer->data + buffer->count, format, args);
+    va_end(args);
+
+    buffer->count += (u64)formatted_size;
+    return (u64)formatted_size;
+}
+
+String String_Builder_To_String(String_Builder *sb) {
+    u64 count = String_Builder_Count(sb);
+
+    String result = {
+        .data   = NULL,
+        .length = count,
+    };
+
+    if (sb->allocator) {
+        result.data = (char*) Arena_Alloc(sb->allocator, count+1, .clear_to_zero = false);
+        // result.data = (char*) Arena_Alloc_Clear(sb->allocator, count+1, false);
+    } else {
+        result.data = (char*) BESTED_MALLOC(count+1);
+    }
+
+    if (!result.data) {
+        STRING_BUILDER_PANIC("Arena_Alloc failed when trying to allocate enough memory to hold to result string from String_Builder_To_String()");
+        result.length = 0;
+        return result;
+    }
+
+    u64 index = 0;
+    for (u64 i = 0; i <= sb->buffer_index; i++) {
+        Character_Buffer *buffer = String_Builder_Internal_Get_Character_Buffer_At_Index(sb, i);
+        Mem_Copy(result.data + index, buffer->data, buffer->count);
+        index += buffer->count;
+    }
+
+    result.data[result.length] = 0;
+    return result;
+}
+
+void String_Builder_To_File(String_Builder *sb, FILE *file) {
+    for (u64 i = 0; i <= sb->buffer_index; i++) {
+        Character_Buffer *buffer = String_Builder_Internal_Get_Character_Buffer_At_Index(sb, i);
+        fwrite(buffer->data, sizeof(char), buffer->count, file);
+    }
+}
+
+void String_Builder_Free(String_Builder *sb) {
+    if (sb->allocator) {
+            fprintf(stderr, "=======================================================================================\n");
+            fprintf(stderr, "Are you serious?\n");
+            fprintf(stderr, "\n");
+            fprintf(stderr, "Did you just attempt to free a string buffer that was allready given an allocator?\n");
+            fprintf(stderr, "Not just any allocator either, the only thing string builders accept are arena allocators.\n");
+            fprintf(stderr, "\n");
+            fprintf(stderr, "You know I do this for you right?\n");
+            fprintf(stderr, "I give you all these tools and this is what you do with it?\n");
+            fprintf(stderr, "Make a mistake that could have easily been ignored, look into this function you just called.\n");
+            fprintf(stderr, "I can check if you have an allocator and just ignore it, but I wont.\n");
+            fprintf(stderr, "\n");
+            fprintf(stderr, "I'm not gonna even ASSERT(false).\n");
+            fprintf(stderr, "I'm gonna let the segmentation falt, or the subtle memory bug do the talking for me.\n");
+            fprintf(stderr, "\n");
+            fprintf(stderr, "I hope you have a terrible day.\n");
+            fprintf(stderr, "=======================================================================================\n");
+    }
+
+    Segment *segment = &sb->first_segment_holder;
+    bool first_segment = true;
+
+    while (segment) {
+        for (u32 i = 0; i < STRING_BUILDER_NUM_BUFFERS; i++) {
+            Character_Buffer *buffer = &segment->buffers[i];
+            if (buffer->data) BESTED_FREE(buffer->data);
+
+            // only matters if its the first segment.
+            buffer->count    = 0;
+            buffer->capacity = 0;
+            buffer->data     = NULL;
+        }
+
+        Segment *next_segment = segment->next;
+
+        if (!first_segment) BESTED_FREE(segment);
+        first_segment = false;
+
+        segment = next_segment;
+    }
+
+    sb->first_segment_holder.next = NULL;
+    sb->current_segment = &sb->first_segment_holder;
 }
 
 

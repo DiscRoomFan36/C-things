@@ -12,17 +12,21 @@ run: all
 	valgrind ./build/arena_test
 	valgrind ./build/pool_test
 # 	these rely on the arena and pool, don't need to valgrind them
+	./build/string_test
 	./build/string_builder_test
 	./build/array_test
 	./build/hashmap_test
 
-all: arena_test pool_test string_builder_test array_test hashmap_test
+all: arena_test pool_test string_test string_builder_test array_test hashmap_test
 
 arena_test:                               | build
 	$(CC) $(CFLAGS) -o ./build/arena_test tests/arena_test.c
 
 pool_test:                                | build
 	$(CC) $(CFLAGS) -o ./build/pool_test tests/pool_test.c
+
+string_test:
+	$(CC) $(CFLAGS) -o ./build/string_test tests/string_test.c
 
 string_builder_test:                      | build
 	$(CC) $(CFLAGS) -o ./build/string_builder_test tests/string_builder_test.c
