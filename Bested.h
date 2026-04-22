@@ -6,7 +6,7 @@
 // Created  - 04/08/25
 // Modified - 22/04/26
 //
-// Version  - 1.0.1
+// Version  - 1.1.0
 //
 // Make sure to...
 //      #define BESTED_IMPLEMENTATION
@@ -573,19 +573,23 @@ String  String_From_C_Str(const char *str);
 #define S(c_str)    String_From_C_Str(c_str)
 
 
-const char *String_To_C_Str(Arena *arena, String s);
+// will use BESTED_MALLOC() if allocator is NULL
+const char *String_To_C_Str(String s, Arena *allocator);
 const char *temp_String_To_C_Str(String s);
 
 
 typedef struct {
+    // the allocator to use, will use BESTED_MALLOC() if null.
+    Arena* allocator;
+    // weather or not to null terminate the string.
     bool null_terminate;
 } String_Duplicate_Opt;
 
 // if arena == NULL, uses BESTED_MALLOC.
 //
 // by default dose not null_terminate
-#define String_Duplicate(arena, string, ...) _String_Duplicate((arena), (string), (String_Duplicate_Opt){ __VA_ARGS__ })
-String _String_Duplicate(Arena *arena, String s, String_Duplicate_Opt opt);
+#define String_Duplicate(string, ...) _String_Duplicate((string), (String_Duplicate_Opt){ __VA_ARGS__ })
+String _String_Duplicate(String s, String_Duplicate_Opt opt);
 
 // in place.
 void    String_To_Upper(String *s);
@@ -1712,8 +1716,8 @@ String String_From_C_Str(const char *str) {
     };
     return result;
 }
-const char *String_To_C_Str(Arena *arena, String s) {
-    return String_Duplicate(arena, s, .null_terminate = true).data;
+const char *String_To_C_Str(String s, Arena *allocator) {
+    return String_Duplicate(s, .allocator = allocator, .null_terminate = true).data;
 }
 
 #define TEMP_STRING_TO_C_STR_NUM_BUFFERS    64
@@ -1734,11 +1738,11 @@ const char *temp_String_To_C_Str(String s) {
 }
 
 
-String _String_Duplicate(Arena *arena, String s, String_Duplicate_Opt opt) {
+String _String_Duplicate(String s, String_Duplicate_Opt opt) {
     String result = { .length = s.length, };
     u64 alloc_size = s.length + (opt.null_terminate ? 1 : 0);
-    if (arena) {
-        result.data = (char*) Arena_Alloc(arena, alloc_size);
+    if (opt.allocator) {
+        result.data = (char*) Arena_Alloc(opt.allocator, alloc_size);
     } else {
         result.data = (char*) BESTED_MALLOC(alloc_size);
     }
