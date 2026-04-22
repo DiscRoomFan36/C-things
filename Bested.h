@@ -6,7 +6,7 @@
 // Created  - 04/08/25
 // Modified - 22/04/26
 //
-// Version  - 1.0.0
+// Version  - 1.0.1
 //
 // Make sure to...
 //      #define BESTED_IMPLEMENTATION
@@ -1222,9 +1222,6 @@ const char *print_f64   (void *_x);
 
 const char *print_bool  (void *_x);
 const char *print_string(void *_x);
-
-// const char *print_s64_array(void *_array);
-// const char *print_string_array(void *_array);
 
 
 
@@ -2862,43 +2859,6 @@ const char *print_f64   (void *_x) { f64 x    = *(f64*)   _x; return temp_sprint
 const char *print_bool  (void *_x) { bool x   = *(bool*)  _x; return x ? "true" : "false"; }
 
 const char *print_string(void *_x) { String x = *(String*)_x; return temp_sprintf("\""S_Fmt"\"", S_Arg(x)); }
-
-
-// const char *print_s64_array(void *_array) {
-//     String_Builder sb = ZEROED;
-
-//     s64_Array array = *(s64_Array*)_array;
-//     String_Builder_printf("{\n    ");
-//     for (u64 i = 0; i < array.count; i++) {
-//         if (i != 0 && i % 10 == 0) String_Builder_printf("\n    ");
-//         String_Builder_printf("%6ld, ", array.items[i]);
-//     }
-//     String_Builder_printf("\n}");
-
-
-//     const char *result = String_Builder_To_String(&sb);
-//     SB_Free(&sb);
-//     return result;
-// }
-
-// const char *print_string_array(void *_array) {
-//     String_Array array = *(String_Array*)_array;
-
-//     String_Builder sb = ZEROED;
-
-//     String_Builder_printf(&sb, "{\n    ");
-//     for (u64 i = 0; i < array.count; i++) {
-//         String_Builder_printf(&sb, "    ");
-//         String_Builder_printf(&sb, "%s,\n", print_string(&array.items[i]));
-//     }
-//     String_Builder_printf(&sb, "}");
-
-//     // this is malloc'd, TODO think about
-//     String result = String_Builder_To_String(&sb);
-//     SB_Free(&sb);
-//     return result.data;
-
-// }
 
 
 
