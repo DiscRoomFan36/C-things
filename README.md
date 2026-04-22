@@ -5,7 +5,7 @@ The Best(ed.h) C standard library ever made.
 
 In a Single-Header-File style.
 
-Please note, I have not namespaced anything, (other than Struct specific internal stuff), good luck with that. But who needs other dependencies anyway?
+Please note, I have not namespaced anything, (other than some Struct specific internal stuff). There is a note at the beginning of the Bested.h file about this issue.
 
 
 ## Quickstart
