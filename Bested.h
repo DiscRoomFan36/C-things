@@ -4,9 +4,9 @@
 // Author   - Fletcher M
 //
 // Created  - 04/08/25
-// Modified - 22/04/26
+// Modified - 26/05/26
 //
-// Version  - 1.2.0
+// Version  - 1.2.1
 //
 // Make sure to...
 //      #define BESTED_IMPLEMENTATION
@@ -478,8 +478,8 @@ typedef struct {
 // Allocate some memory in a arena, uses macro tricks to give you more options.
 void *_Arena_Alloc(Arena *arena, u64 size_in_bytes, Arena_Alloc_Opt opt, Source_Code_Location caller_location);
 
-#define Arena_Alloc(arena, size, ...)      _Arena_Alloc((arena), (size), (Arena_Alloc_Opt){.alignment = Default_Alignment, .clear_to_zero = true, __VA_ARGS__ }, Get_Source_Code_Location())
-#define Arena_Alloc_Struct(arena, type, ...)                         (type *)Arena_Alloc((arena), sizeof(type), .alignment = Alignof(type), ##__VA_ARGS__)
+#define Arena_Alloc(arena, size, ...)                   _Arena_Alloc((arena), (size),       (Arena_Alloc_Opt){.alignment = Default_Alignment, .clear_to_zero = true, __VA_ARGS__}, Get_Source_Code_Location())
+#define Arena_Alloc_Struct(arena, type, ...)    (type *)_Arena_Alloc((arena), sizeof(type), (Arena_Alloc_Opt){.alignment = Alignof(type),     .clear_to_zero = true, __VA_ARGS__}, Get_Source_Code_Location())
 
 
 
@@ -2071,7 +2071,7 @@ void Generic_Hash_Map_Clear(Generic_Hash_Map *hash_map, Hash_Map_Key_Value_Type_
 
     // set all entries to unallocated.
     for (u64 i = 0; i < hash_map->capacity; i++) {
-        Generic_Entry *entry = (void*)((u8*)hash_map->entries + i * properties.entry_size);
+        Generic_Entry *entry = (Generic_Entry*)((u8*)hash_map->entries + i * properties.entry_size);
         entry->hash = Hash_Map_UNALLOCATED;
     }
 
@@ -2207,15 +2207,15 @@ u64 Hash_Map_Hash_String  (void *key, u64 size) {
     ASSERT(key);
     ASSERT(size == sizeof(String));
 
-    String *string = key;
+    String *string = (String*) key;
     return Hash_Map_Default_Hash_Function(string->data, string->length);
 }
 bool Hash_Map_Eq_String(void *key_a, void *key_b, u64 size) {
     ASSERT(key_a && key_b);
     ASSERT(size == sizeof(String));
 
-    String *string_a = key_a;
-    String *string_b = key_b;
+    String *string_a = (String*) key_a;
+    String *string_b = (String*) key_b;
     return String_Eq(*string_a, *string_b);
 }
 
@@ -2224,7 +2224,10 @@ u64 Hash_Map_Hash_C_String  (void *key, u64 size) {
     ASSERT(key);
     ASSERT(size == sizeof(const char *));
 
-    const char **c_str = key;
+    const char **c_str = (const char **) key;
+    // this is also a funny way of doing this cast... it it better?
+    // const char **c_str = (Typeof(c_str)) key;
+
     // yeah I know, this passes over the string twice,
     //
     // I do not care.
@@ -2237,8 +2240,8 @@ bool Hash_Map_Eq_C_String(void *key_a, void *key_b, u64 size) {
     ASSERT(key_a && key_b);
     ASSERT(size == sizeof(const char *));
 
-    const char **c_str_a = key_a;
-    const char **c_str_b = key_b;
+    const char **c_str_a = (const char **) key_a;
+    const char **c_str_b = (const char **) key_b;
     // it would be so much better if we had a way
     // of telling what the size of the string was...
     String string_a = S(*c_str_a);
@@ -2257,7 +2260,7 @@ u64 Hash_Function_fnv1a(void *key, u64 size) {
     // 64 bit FNV_prime = 2^40 + 2^8 + 0xb3 = 1099511628211
     const u64 FNV_prime  =        1099511628211ULL;
 
-    u8 *u8_ptr = key;
+    u8 *u8_ptr = (u8*) key;
     u64 hash = FNV_offset;
     for (u64 i = 0; i < size; i++) {
         hash = (hash ^ u8_ptr[i]) * FNV_prime;
@@ -2463,7 +2466,7 @@ Split_Once_Result Split_Once(String string, String separator) {
         return result;
     } else {
         Split_Once_Result result = {
-            .left  = { .data = string.data, .length = index },
+            .left  = { .data = string.data, .length = (u64) index },
             .right = {
                 .data   = string.data   +  index + separator.length ,
                 .length = string.length - (index + separator.length),
@@ -2604,7 +2607,7 @@ internal Character_Buffer *String_Builder_Internal_Maybe_Expand_To_Fit(String_Bu
         if (sb->buffer_index % STRING_BUILDER_NUM_BUFFERS == 0) {
             if (!sb->current_segment->next) {
                 if (sb->allocator) {
-                    sb->current_segment->next = (Segment*) Arena_Alloc_Struct(sb->allocator, Segment);
+                    sb->current_segment->next = Arena_Alloc_Struct(sb->allocator, Segment);
                 } else {
                     sb->current_segment->next = (Segment*) BESTED_MALLOC(sizeof(Segment));
                     Mem_Zero(sb->current_segment->next, sizeof(Segment));
@@ -2846,7 +2849,7 @@ String Read_Entire_File(String filename, Arena *arena) {
             if (arena) {
                 result.data = (char*) Arena_Alloc(arena, result.length+1, .clear_to_zero = false);
             } else {
-                result.data = BESTED_MALLOC(result.length+1);
+                result.data = (char*) BESTED_MALLOC(result.length+1);
             }
             // result.data = (char*) Arena_Alloc_Clear(arena, result.length+1, false);
             if (result.data) {
@@ -2922,7 +2925,7 @@ const char *print_f64   (void *_x) { f64 x    = *(f64*)   _x; return temp_sprint
 
 const char *print_bool  (void *_x) { bool x   = *(bool*)  _x; return x ? "true" : "false"; }
 
-const char *print_string(void *_x) { String x = *(String*)_x; return temp_sprintf("\""S_Fmt"\"", S_Arg(x)); }
+const char *print_string(void *_x) { String x = *(String*)_x; return temp_sprintf("\"" S_Fmt "\"", S_Arg(x)); }
 
 
 

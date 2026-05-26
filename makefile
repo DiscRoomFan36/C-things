@@ -16,8 +16,9 @@ run: all
 	./build/string_builder_test
 	./build/array_test
 	./build/hashmap_test
+	./build/cpp_test
 
-all: arena_test pool_test string_test string_builder_test array_test hashmap_test
+all: arena_test pool_test string_test string_builder_test array_test hashmap_test cpp_test
 
 arena_test:                               | build
 	$(CC) $(CFLAGS) -o ./build/arena_test tests/arena_test.c
@@ -36,6 +37,16 @@ array_test:                               | build
 
 hashmap_test:                             | build
 	$(CC) $(CFLAGS) -o ./build/hashmap_test tests/hashmap_test.c
+
+
+CPP_FLAGS = -std=c++11
+CPP_FLAGS += -Wall -Wextra -ggdb
+CPP_FLAGS += -Wno-initializer-overrides # need this one, cant have default args without it... or is there another way?
+CPP_FLAGS += -Werror
+
+cpp_test:                                 | build
+	$(CC) $(CPP_FLAGS) -o ./build/cpp_test tests/cpp_test.c++
+
 
 
 build:
