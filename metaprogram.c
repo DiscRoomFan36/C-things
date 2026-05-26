@@ -15,16 +15,8 @@ void print_useage(const char *program_name) {
 }
 
 
-typedef struct String_Array {
-    _Array_Header_;
-    String *items;
-} String_Array;
-
-
-
 int main(int argc, char const *argv[]) {
     const char *program_name = argv[0];
-
 
     if (argc != 3) {
         print_useage(program_name);
@@ -42,13 +34,13 @@ int main(int argc, char const *argv[]) {
     }
 
 
-    String file = Read_Entire_File(&file_arena, filename);
+    String file = Read_Entire_File(filename, &file_arena);
     if (!file.data) {
         printf("File dose not exist!\n");
         print_useage(program_name);
     }
 
-    String filename_upper = String_Dup(&string_builder_arena, filename);
+    String filename_upper = String_Duplicate(filename, .allocator = &string_builder_arena);
     filename_upper = String_Path_to_Filename(filename_upper);
     filename_upper = String_Remove_Extention(filename_upper);
     String_To_Upper(&filename_upper);
@@ -125,25 +117,25 @@ int main(int argc, char const *argv[]) {
     String_Builder_printf(&string_builder_arena, &sb, "\n");
 
     String_Builder_printf(&string_builder_arena, &sb, "// typedefs\n");
-    Array_For_Each(String, typedef_line, &typedef_definitions) {
+    Array_For_Each(typedef_line, &typedef_definitions) {
         String_Builder_printf(&string_builder_arena, &sb, S_Fmt"\n", S_Arg(*typedef_line));
     }
 
     String_Builder_printf(&string_builder_arena, &sb, "\n");
     String_Builder_printf(&string_builder_arena, &sb, "// structs\n");
-    Array_For_Each(String, name, &struct_definitions) {
+    Array_For_Each(name, &struct_definitions) {
         String_Builder_printf(&string_builder_arena, &sb, "typedef struct "S_Fmt" "S_Fmt";\n", S_Arg(*name), S_Arg(*name));
     }
 
     String_Builder_printf(&string_builder_arena, &sb, "\n");
     String_Builder_printf(&string_builder_arena, &sb, "// enums\n");
-    Array_For_Each(String, enum_name, &enum_definitions) {
+    Array_For_Each(enum_name, &enum_definitions) {
         String_Builder_printf(&string_builder_arena, &sb, "typedef enum "S_Fmt" "S_Fmt";\n", S_Arg(*enum_name), S_Arg(*enum_name));
     }
 
     String_Builder_printf(&string_builder_arena, &sb, "\n");
     String_Builder_printf(&string_builder_arena, &sb, "// functions\n");
-    Array_For_Each(String, func_def, &function_definitions) {
+    Array_For_Each(func_def, &function_definitions) {
         String_Builder_printf(&string_builder_arena, &sb, S_Fmt";\n", S_Arg(*func_def));
     }
 
