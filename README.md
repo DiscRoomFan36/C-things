@@ -194,7 +194,7 @@ foo_array.allocator = Pool_Get(&pool);
     Array_Swap_And_Remove(&foo_array, 3);
 
     // iteration helper.
-    Array_For_Each(Foo, it, &foo_array) {
+    Array_For_Each(it, &foo_array) {
         u64 index = it - foo_array.items;
         printf("%zu: %d\n", index, it.bar);
     }
@@ -240,7 +240,7 @@ foo_array.allocator = Pool_Get(&pool);
 //         .hash_function = Hash_Map_Hash_String, // some hash functions are provided for the String types,
 //         .eq_function   = Hash_Map_Eq_String,   // (as well as 'const char *' type, but who cares about that one.)
 //
-//         .default_value = 0, // by default this is allready zero.
+//         .default_value = 0, // by default this is already zero.
 //    };
 // ```
 //
