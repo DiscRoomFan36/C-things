@@ -6,7 +6,7 @@
 // Created  - 04/08/25
 // Modified - 26/05/26
 //
-// Version  - 1.2.1
+// Version  - 1.2.2
 //
 // Make sure to...
 //      #define BESTED_IMPLEMENTATION
@@ -1821,34 +1821,53 @@ internal void *Hash_Map_Maybe_Get_Entry(Generic_Hash_Map *hash_map, void *key, u
     ASSERT(hash_map);
     ASSERT(key);
 
-    // don't give this an invalid hash.
+    // don't give this an invalid hash. (0 or 1)
     ASSERT(!Hash_Map_Hash_Is_Bad(hash));
 
+    // this is the only case where this function returns NULL,
+    // and it tells downstream functions that the Hash_Map needs to grow first.
     if (hash_map->capacity == 0) return NULL;
 
-    // gonna need this to check if keys are equal.
+    // gonna need this to check if keys are equal, so grab the equality function.
     Equality_Function equality_function = hash_map->eq_function ? hash_map->eq_function : Hash_Map_Default_Equality_Function;
 
     // must be true, or my probe strategy will not cover every cell.
     ASSERT(Is_Pow_2(hash_map->capacity));
-    u64 increment   = 1;
+    u64 increment   = 0; // '0' <- trick to make the while loop flow better.
     u64 entry_index = hash % hash_map->capacity;
 
+    s64 first_dead_entry_index = -1;
+
     while (true) {
-        void *entry = (u8*)hash_map->entries + entry_index * properties.entry_size;
-
-        // this is a valid position to put something in. break
-        if (HASH_MAP_HASH_FROM_ENTRY(entry) == Hash_Map_UNALLOCATED) break;
-
-        // check if this is the same key.
-        if (HASH_MAP_HASH_FROM_ENTRY(entry) == hash && equality_function(key, (u8*)entry + properties.key_offset_in_entry, properties.key_size)) {
-            return entry;
-        }
-
+        // wont do anything on first go around.
         entry_index = (entry_index + increment) % hash_map->capacity;
         increment += 1;
         ASSERT(increment < 4096); // what are the odds for 4096 hash collisions in a row? something bad must have happened.
+
+        void *entry = (u8*)hash_map->entries + entry_index * properties.entry_size;
+
+        u64 entry_hash = HASH_MAP_HASH_FROM_ENTRY(entry);
+
+        // this is a valid position to put something in. break
+        if (entry_hash == Hash_Map_UNALLOCATED) break;
+
+        // if its dead, we take a note of it and move on.
+        if (entry_hash == Hash_Map_DEAD) {
+            if (first_dead_entry_index == -1) first_dead_entry_index = entry_index;
+            continue;
+        }
+
+        // check if this is the same hash
+        if (entry_hash != hash) { continue; }
+
+        // finally, check if this is the same key, and if so: return the entry
+        if (equality_function(key, (u8*)entry + properties.key_offset_in_entry, properties.key_size)) {
+            return entry;
+        }
     }
+
+    // take the first dead entry instead of using the unallocated we found.
+    if (first_dead_entry_index != -1) entry_index = first_dead_entry_index;
 
     // TODO maybe better to return a DEAD position? we can keep track if we have seen one.
     return (u8*)hash_map->entries + entry_index * properties.entry_size;
@@ -1920,10 +1939,13 @@ internal void Hash_Map_Maybe_Grow(Generic_Hash_Map *hash_map, u64 be_able_to_fit
 
     void *old_entries = hash_map->entries;
     u64   old_size    = hash_map->capacity;
-    u64   old_count = hash_map->count;
+    u64   old_count   = hash_map->count;
 
     if (old_size == 0) ASSERT(old_entries == NULL);
     else               ASSERT(old_entries != NULL);
+
+    // remove dead entries from count
+    // be_able_to_fit_at_least -= hash_map->dead_count;
 
     // grow array capacity.
     hash_map->capacity = hash_map->capacity != 0 ? hash_map->capacity * 2 : HASH_MAP_INITAL_CAPACITY;
@@ -2026,7 +2048,8 @@ internal void *Generic_Hash_Map_Put_Or_Get_Default_Helper(Generic_Hash_Map *hash
     // the correct key, or something unallocated.
     ASSERT(entry != NULL);
 
-    if (HASH_MAP_HASH_FROM_ENTRY(entry) == Hash_Map_UNALLOCATED) {
+    u64 entry_hash = HASH_MAP_HASH_FROM_ENTRY(entry);
+    if (entry_hash == Hash_Map_UNALLOCATED || entry_hash == Hash_Map_DEAD) {
         // set hash.
         ((Generic_Entry*) entry)->hash = key_hash;
         // set key
@@ -2037,6 +2060,8 @@ internal void *Generic_Hash_Map_Put_Or_Get_Default_Helper(Generic_Hash_Map *hash
         }
 
         hash_map->count += 1;
+        // if we are stomping over a dead entry, remember to remove 1 from the dead count.
+        if (entry_hash == Hash_Map_DEAD) hash_map->dead_count -= 1;
     }
 
     return (u8*)entry + properties.value_offset_in_entry;
