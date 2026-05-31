@@ -32,6 +32,24 @@ void foo(void) {
         *it += 1;
     }
 
+    { // dead entry reuse check.
+        *Hash_Map_Get_Or_Default(&my_hash_map, 123) = 5;
+
+        // the above thing may have stomped over a dead entry itself. so below it goes.
+        u64 start_dead_count = my_hash_map.dead_count;
+
+        // removing it should create a dead entry.
+        Hash_Map_Remove(&my_hash_map, 123);
+        // we just got a new dead thing.
+        assert(my_hash_map.dead_count == start_dead_count + 1);
+
+        // this *MUST* be over the last entry,
+        *Hash_Map_Get_Or_Default(&my_hash_map, 123) = 6;
+
+        // a dead count got removed.
+        assert(my_hash_map.dead_count == start_dead_count);
+    }
+
     Hash_Map_Clear(&my_hash_map);
     assert(my_hash_map.count == 0);
 }
