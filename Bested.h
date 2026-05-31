@@ -4,9 +4,9 @@
 // Author   - Fletcher M
 //
 // Created  - 04/08/25
-// Modified - 26/05/26
+// Modified - 01/06/26
 //
-// Version  - 1.2.2
+// Version  - 1.2.3
 //
 // Make sure to...
 //      #define BESTED_IMPLEMENTATION
@@ -1929,13 +1929,14 @@ internal void *Generic_Hash_Map_Get_Entry_For_Value(Generic_Hash_Map *hash_map, 
     return entry;
 }
 
-internal void Hash_Map_Maybe_Grow(Generic_Hash_Map *hash_map, u64 be_able_to_fit_at_least, Hash_Map_Key_Value_Type_Properties properties, Source_Code_Location caller_location) {
+// returns weather or not it "grew" / changed backing arrays
+internal bool Hash_Map_Maybe_Grow(Generic_Hash_Map *hash_map, u64 be_able_to_fit_at_least, Hash_Map_Key_Value_Type_Properties properties, Source_Code_Location caller_location) {
     ASSERT(hash_map);
 
     const u64 HASH_MAP_GROWTH_PERCENT = 75;
 
     // only grow array when at nearing capacity, not at capacity.
-    if (be_able_to_fit_at_least < hash_map->capacity * HASH_MAP_GROWTH_PERCENT / 100) return;
+    if (be_able_to_fit_at_least * 100 < hash_map->capacity * HASH_MAP_GROWTH_PERCENT) return false;
 
     void *old_entries = hash_map->entries;
     u64   old_size    = hash_map->capacity;
@@ -1944,12 +1945,31 @@ internal void Hash_Map_Maybe_Grow(Generic_Hash_Map *hash_map, u64 be_able_to_fit
     if (old_size == 0) ASSERT(old_entries == NULL);
     else               ASSERT(old_entries != NULL);
 
-    // remove dead entries from count
-    // be_able_to_fit_at_least -= hash_map->dead_count;
+    //
+    // remove dead entries from the count if there are a lot of them.
+    // The Hash_Map will only grow if there are not dead things cloging up the map.
+    //
+    // this function is only called 2 placed, 'Generic_Hash_Map_Put_Or_Get_Default_Helper()' or 'Hash_Map_Reserve()'
+    //
+    // 'Generic_Hash_Map_Put_Or_Get_Default_Helper()' wants to subtract dead_count from this.
+    //
+    // 'Hash_Map_Reserve()' dose not. maybe. '_Reserve()' is usually called at the start of the Hash_Map's life, so dead_count would be 0...
+    //
+    // TODO figure out what this dose to Hash_Map_Reserve
+    //
+    // only care if over 10%
+    #define HASH_MAP_DEAD_COUNT_CARE_ABOUT_PERCENT 10
+    if (hash_map->dead_count * 100 > hash_map->capacity * HASH_MAP_DEAD_COUNT_CARE_ABOUT_PERCENT) {
+        //
+        // this is saying
+        // "if there are not many dead, double the capacity, else stay the same capacity."
+        //
+        be_able_to_fit_at_least -= hash_map->dead_count;
+    }
 
     // grow array capacity.
-    hash_map->capacity = hash_map->capacity != 0 ? hash_map->capacity * 2 : HASH_MAP_INITAL_CAPACITY;
-    while (be_able_to_fit_at_least >= hash_map->capacity * HASH_MAP_GROWTH_PERCENT / 100) {
+    if (hash_map->capacity == 0)    hash_map->capacity = HASH_MAP_INITAL_CAPACITY;
+    while (be_able_to_fit_at_least * 100 >= hash_map->capacity * HASH_MAP_GROWTH_PERCENT) {
         hash_map->capacity *= 2;
     }
 
@@ -2013,6 +2033,8 @@ internal void Hash_Map_Maybe_Grow(Generic_Hash_Map *hash_map, u64 be_able_to_fit
         // its ok to free a null pointer.
         BESTED_FREE(old_entries);
     }
+
+    return true;
 }
 
 
@@ -2035,18 +2057,29 @@ internal void *Generic_Hash_Map_Put_Or_Get_Default_Helper(Generic_Hash_Map *hash
 
     u64 key_hash = Hash_Map_Safely_Get_Hash(hash_map, key, properties);
 
-    // This might make the hash map grow, even when in
-    // some cases it shouldn't, do I care?
-    Hash_Map_Maybe_Grow(hash_map, hash_map->dead_count + hash_map->count + 1, properties, caller_location);
-
-    // must be space to put this new thing.
-    ASSERT(hash_map->capacity > 0);
-
+    // getting the entry up front, we might need to do this later if this triggers a regrow.
     void *entry = Hash_Map_Maybe_Get_Entry(hash_map, key, key_hash, properties);
 
-    // we just grew the array, this must either be
-    // the correct key, or something unallocated.
-    ASSERT(entry != NULL);
+    // check if either the hash_map is empty, or we got a new UNALLOCATED position.
+    bool maybe_need_to_grow = (entry == NULL); // aka hash_map.capacity == 0
+    if (entry != NULL) {
+        maybe_need_to_grow = maybe_need_to_grow || (HASH_MAP_HASH_FROM_ENTRY(entry) == Hash_Map_UNALLOCATED);
+    }
+
+    if (maybe_need_to_grow) {
+        // maybe we need to maybe grow the array.
+        bool the_array_grew = Hash_Map_Maybe_Grow(hash_map, hash_map->dead_count + hash_map->count + 1, properties, caller_location);
+        if (the_array_grew) {
+            // if it did change, we must re-hash, a tragedy to be sure.
+            // but this only happens very infrequently. so its fine.
+            entry = Hash_Map_Maybe_Get_Entry(hash_map, key, key_hash, properties);
+
+            // we just grew the array, this must either be
+            // the correct key, or something unallocated.
+            ASSERT(entry != NULL);
+        }
+        // else { we can just reuse the old entry }
+    }
 
     u64 entry_hash = HASH_MAP_HASH_FROM_ENTRY(entry);
     if (entry_hash == Hash_Map_UNALLOCATED || entry_hash == Hash_Map_DEAD) {
@@ -2137,6 +2170,8 @@ void Generic_Hash_Map_Reserve(Generic_Hash_Map *hash_map, u64 num_to_reserve, Ha
     ASSERT(hash_map);
 
     Hash_Map_Maybe_Grow(hash_map, num_to_reserve, properties, caller_location);
+    // // '+ hash_map->dead_count' is a hack, because
+    // Hash_Map_Maybe_Grow(hash_map, num_to_reserve + hash_map->dead_count, properties, caller_location);
 }
 
 bool Generic_Hash_Map_Remove(Generic_Hash_Map *hash_map, void *key, Hash_Map_Key_Value_Type_Properties properties) {
