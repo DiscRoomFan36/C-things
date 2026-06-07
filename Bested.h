@@ -4,9 +4,9 @@
 // Author   - Fletcher M
 //
 // Created  - 04/08/25
-// Modified - 01/06/26
+// Modified - 06/06/26
 //
-// Version  - 1.2.3
+// Version  - 1.3.0
 //
 // Make sure to...
 //      #define BESTED_IMPLEMENTATION
@@ -1018,8 +1018,8 @@ String  String_From_C_Str(const char *str);
 
 
 // will use BESTED_MALLOC() if allocator is NULL
-const char *String_To_C_Str(String s, Arena *allocator);
-const char *temp_String_To_C_Str(String s);
+const char *C_Str_From_String(String s, Arena *allocator);
+const char *temp_C_Str_From_String(String s);
 
 
 typedef struct {
@@ -2352,13 +2352,13 @@ String String_From_C_Str(const char *str) {
     };
     return result;
 }
-const char *String_To_C_Str(String s, Arena *allocator) {
+const char *C_Str_From_String(String s, Arena *allocator) {
     return String_Duplicate(s, .allocator = allocator, .null_terminate = true).data;
 }
 
 #define TEMP_STRING_TO_C_STR_NUM_BUFFERS    64
 #define TEMP_STRING_TO_C_STR_MAX_LENGTH     (4 * KILOBYTE)
-const char *temp_String_To_C_Str(String s) {
+const char *temp_C_Str_From_String(String s) {
     local_persist char buffers[TEMP_STRING_TO_C_STR_NUM_BUFFERS][TEMP_STRING_TO_C_STR_MAX_LENGTH];
     local_persist u32  current_buffer_index = 0;
 
@@ -2893,11 +2893,11 @@ String Read_Entire_File(String filename, Arena *arena) {
 
     // pretty sure PATHMAX is less than TEMP_STRING_TO_C_STR_MAX_LENGTH
     if (filename.length >= TEMP_STRING_TO_C_STR_MAX_LENGTH) {
-        fprintf(stderr, "filename length is bigger than temp_String_To_C_Str() storage, was %zu, witch is probably bigger than PATH_MAX on a lot of OS's", filename.length);
+        fprintf(stderr, "filename length is bigger than temp_C_Str_From_String() storage, was %zu, witch is probably bigger than PATH_MAX on a lot of OS's", filename.length);
         return result;
     }
 
-    FILE *file = fopen(temp_String_To_C_Str(filename), "rb");
+    FILE *file = fopen(temp_C_Str_From_String(filename), "rb");
 
     if (file) {
         fseek(file, 0, SEEK_END);
