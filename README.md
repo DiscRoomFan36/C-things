@@ -350,9 +350,9 @@ String my_string = S("Hello World");
 // printing helpers
 printf("my_string: "S_Fmt"\n", S_Arg(my_string));
 
-const char *c_string = String_To_C_Str(&arena, my_string);
+const char *c_string = C_Str_From_String(my_string, &arena);
 // useful to pass into fopen() and other c std functions.
-const char *c_string = temp_String_To_C_Str(my_string);
+const char *c_string = temp_C_Str_From_String(my_string);
 
 String dup_string = String_Duplicate(&arena, my_string, .null_terminate = true);
 
