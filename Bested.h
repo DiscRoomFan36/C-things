@@ -4,9 +4,9 @@
 // Author   - Fletcher M
 //
 // Created  - 04/08/25
-// Modified - 06/06/26
+// Modified - 08/06/26
 //
-// Version  - 1.3.0
+// Version  - 1.3.1
 //
 // Make sure to...
 //      #define BESTED_IMPLEMENTATION
@@ -102,14 +102,14 @@ typedef int32_t         s32;
 typedef int16_t         s16;
 typedef int8_t          s8;
 
+typedef float           f32;
+typedef double          f64;
+
 // fixed width bool types, might be useful, but probably not.
 typedef u64             b64;
 typedef u32             b32;
 typedef u16             b16;
 typedef u8              b8;
-
-typedef float           f32;
-typedef double          f64;
 
 // Turn your unknown size enums into known size enums
 #define enum8(type)     u8
