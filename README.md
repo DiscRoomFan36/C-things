@@ -461,13 +461,56 @@ typedef double          f64;
 Also stdbool.h is included as well. so you don't need to #include that yourself. (like i do in every single C file I make.)
 
 
+### Nice (Control Flow) Macro's
+```c
+// control flow helper, useful to define more of these for more specific cases.
+#define defer_return(res) do { result = (res); goto defer; } while (0)
+
+//
+// control flow helper,
+//
+// allows you to call 2 functions,
+// one at the start of a scope, one at the end.
+// while being able to put them next to each other.
+// Increases binding energy.
+//
+// Examples:
+// ```
+// // holding a mutex
+// Defer_Scope(Hold_Mutex(&mutex), Release_Mutex(&mutex)) {
+//     // mutex stuff
+// }
+// ```
+//
+//
+// A Raylib example:
+// ```
+// Defer_Scope(BeginCameraMode(camera), EndCameraMode()) {
+//     // drawing stuff
+// }
+//
+// // or a cool macro version
+// #define Camera_Mode_Scope(camera) Defer_Scope(BeginCameraMode(camera), EndCameraMode())
+// Camera_Mode_Scope(camera) {
+//     // drawing stuff
+// }
+// ```
+//
+// Caution:
+// be careful when using control flow statements when in a defer scope.
+//
+// `return` and `break` will skip the deinit.
+// use `continue` to exit the scope immediately.
+//
+#define Defer_Scope(init, deinit) for (int __i = ((init), 0); __i != 1; __i = 1, (deinit))
+```
+
 ### Nice Macro's
 
 NOTE: Clamp() Macro collides with raylib's clamp.
 
 
 ```c
-
 // I always forget how to call typeof()
 #define Typeof(x)       __typeof__(x)
 // stick the extra Typeof() in there to prevent [-Wgnu-alignof-expression]
@@ -514,7 +557,6 @@ TODO("finish this");
 
 // this accepts no arguments
 UNREACHABLE();
-
 ```
 
 ### Nice #defines
