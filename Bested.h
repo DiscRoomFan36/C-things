@@ -6,7 +6,7 @@
 // Created  - 04/08/25
 // Modified - 08/06/26
 //
-// Version  - 1.3.1
+// Version  - 1.4.0
 //
 // Make sure to...
 //      #define BESTED_IMPLEMENTATION
@@ -125,6 +125,44 @@ typedef u8              b8;
 
 // control flow helper, useful to define more of these for more specific cases.
 #define defer_return(res) do { result = (res); goto defer; } while (0)
+
+//
+// control flow helper,
+//
+// allows you to call 2 functions,
+// one at the start of a scope, one at the end.
+// while being able to put them next to each other.
+// Increases binding energy.
+//
+// Examples:
+// ```
+// // holding a mutex
+// Defer_Scope(Hold_Mutex(&mutex), Release_Mutex(&mutex)) {
+//     // mutex stuff
+// }
+// ```
+//
+//
+// A Raylib example:
+// ```
+// Defer_Scope(BeginCameraMode(camera), EndCameraMode()) {
+//     // drawing stuff
+// }
+//
+// // or a cool macro version
+// #define Camera_Mode_Scope(camera) Defer_Scope(BeginCameraMode(camera), EndCameraMode())
+// Camera_Mode_Scope(camera) {
+//     // drawing stuff
+// }
+// ```
+//
+// Caution:
+// be careful when using control flow statements when in a defer scope.
+//
+// `return` and `break` will skip the deinit.
+// use `continue` to exit the scope immediately.
+//
+#define Defer_Scope(init, deinit) for (int __i = ((init), 0); __i != 1; __i = 1, (deinit))
 
 
 // I always forget how to call typeof()
